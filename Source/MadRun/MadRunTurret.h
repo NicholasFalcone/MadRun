@@ -9,6 +9,8 @@ class AMadRunProjectile;
 class USceneComponent;
 class UStaticMeshComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTurretFired);
+
 UCLASS(Blueprintable)
 class AMadRunTurret : public AActor
 {
@@ -53,4 +55,8 @@ private:
 	TWeakObjectPtr<AMadRunPawn> Target;
 	bool bFiring = false;
 	double NextFireTime = 0.0;
+
+public:
+	UPROPERTY(BlueprintAssignable, Category="Turret")
+	FOnTurretFired OnTurretFired;
 };

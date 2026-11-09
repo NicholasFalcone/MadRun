@@ -131,4 +131,5 @@ void AMadRunTurret::Fire()
 	{
 		UE_LOG(LogMadRun, Error, TEXT("Turret '%s' failed to spawn a projectile."), *GetNameSafe(this));
 	}
+	OnTurretFired.Broadcast();
 }
