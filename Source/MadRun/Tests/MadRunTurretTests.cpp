@@ -4,6 +4,8 @@
 #include "MadRunTurret.h"
 #include "MadRunProjectile.h"
 #include "MadRunFuelTank.h"
+#include "MadRunWheelBase.h"
+#include "MadRunWheelHitActor.h"
 #include "OffroadCar/MadRunOffroadCar.h"
 #include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -50,10 +52,82 @@ bool FMadRunTurretTest::RunTest(const FString& Parameters)
 		&& TestNotNull(TEXT("Far target"), Far) && TestNotNull(TEXT("Out-of-range target"), OutOfRange)
 		&& TestNotNull(TEXT("Roof turret"), Turret))
 	{
+		for (AMadRunOffroadCar* Car : { Near, Far, OutOfRange })
+		{
+			Car->SetActorEnableCollision(false);
+			TArray<AActor*> Attached;
+			Car->GetAttachedActors(Attached, true, true);
+			for (AActor* Actor : Attached)
+			{
+				Actor->SetActorEnableCollision(false);
+			}
+		}
+		const FVector Origin = Turret->GetActorLocation();
+		auto SpawnTank = [&](AMadRunOffroadCar* Car, const FVector& Offset)
+		{
+			AMadRunFuelTank* Tank = World->SpawnActor<AMadRunFuelTank>(
+				AMadRunFuelTank::StaticClass(), Origin + Offset, FRotator::ZeroRotator, SpawnParams);
+			if (Tank)
+			{
+				Tank->AttachToActor(Car, FAttachmentTransformRules::KeepWorldTransform);
+			}
+			return Tank;
+		};
+		AMadRunFuelTank* NearTank = SpawnTank(Near, FVector(3000.0f, 0.0f, 0.0f));
+		AMadRunFuelTank* FarTank = SpawnTank(Far, FVector(3000.0f, 3000.0f, 0.0f));
+		AMadRunFuelTank* DistantTank = SpawnTank(OutOfRange, FVector(20000.0f, 0.0f, 0.0f));
+		if (!TestNotNull(TEXT("Near tank"), NearTank) || !TestNotNull(TEXT("Far tank"), FarTank)
+			|| !TestNotNull(TEXT("Distant tank"), DistantTank))
+		{
+			World->BeginTearingDown();
+			World->EndPlay(EEndPlayReason::Quit);
+			GEngine->DestroyWorldContext(World);
+			World->DestroyWorld(false);
+			return false;
+		}
 		Turret->Tick(0.0f);
-		TestTrue(TEXT("Selects nearest other vehicle"), Turret->GetTarget() == Near);
-		const FVector ExpectedDirection = (Near->GetMesh()->Bounds.Origin - Turret->GetActorLocation()).GetSafeNormal();
-		TestTrue(TEXT("Barrel aims at target"), FVector::DotProduct(ExpectedDirection, Turret->GetActorForwardVector()) > 0.999f);
+		TestTrue(TEXT("Selects nearest healthy part"), Turret->GetTarget() == NearTank);
+		const FVector ExpectedDirection = (NearTank->GetActorLocation() - Origin).GetSafeNormal();
+		TestTrue(TEXT("Barrel aims at part"), FVector::DotProduct(ExpectedDirection, Turret->GetActorForwardVector()) > 0.999f);
+
+		AMadRunFuelTank* OwnExtraTank = SpawnTank(Shooter, FVector(500.0f, 500.0f, 0.0f));
+		AMadRunFuelTank* UnattachedTank = World->SpawnActor<AMadRunFuelTank>(
+			AMadRunFuelTank::StaticClass(), Origin + FVector(500.0f, -500.0f, 0.0f),
+			FRotator::ZeroRotator, SpawnParams);
+		TestNotNull(TEXT("Own extra tank"), OwnExtraTank);
+		TestNotNull(TEXT("Unattached tank"), UnattachedTank);
+		Turret->Tick(0.0f);
+		TestTrue(TEXT("Own and unattached parts are not targets"), Turret->GetTarget() == NearTank);
+
+		IMadRunPartHealth::Execute_SetHealth(NearTank, 0);
+		Turret->Tick(0.0f);
+		TestTrue(TEXT("Broken tank is skipped"), Turret->GetTarget() == FarTank);
+		IMadRunPartHealth::Execute_SetHealth(FarTank, 0);
+		Turret->Tick(0.0f);
+		TestNull(TEXT("No target when all in-range parts are broken"), Turret->GetTarget());
+		IMadRunPartHealth::Execute_DoRepair(FarTank);
+		IMadRunPartHealth::Execute_DoRepair(NearTank);
+		Turret->Tick(0.0f);
+		TestTrue(TEXT("Repaired tank can be targeted again"), Turret->GetTarget() == NearTank);
+
+		AMadRunWheelHitActor* WheelHit = World->SpawnActor<AMadRunWheelHitActor>(
+			AMadRunWheelHitActor::StaticClass(), Origin + FVector(2000.0f, -1000.0f, 0.0f),
+			FRotator::ZeroRotator, SpawnParams);
+		UMadRunWheelBase* Wheel = Near->GetWheelByIndex(0);
+		if (TestNotNull(TEXT("Wheel hit actor"), WheelHit) && TestNotNull(TEXT("Runtime wheel"), Wheel))
+		{
+			WheelHit->AttachToActor(Near, FAttachmentTransformRules::KeepWorldTransform);
+			WheelHit->InitializeWheel(Near, 0);
+			Turret->Tick(0.0f);
+			TestTrue(TEXT("Selects nearest healthy wheel hitbox"), Turret->GetTarget() == WheelHit);
+			IMadRunPartHealth::Execute_SetHealth(Wheel, 0);
+			Turret->Tick(0.0f);
+			TestTrue(TEXT("Broken wheel is skipped"), Turret->GetTarget() == NearTank);
+			IMadRunPartHealth::Execute_DoRepair(Wheel);
+			Turret->Tick(0.0f);
+			TestTrue(TEXT("Repaired wheel can be targeted again"), Turret->GetTarget() == WheelHit);
+			WheelHit->Destroy();
+		}
 
 		AActor* Blocker = World->SpawnActor<AActor>();
 		UBoxComponent* Box = NewObject<UBoxComponent>(Blocker);
@@ -62,14 +136,23 @@ bool FMadRunTurretTest::RunTest(const FString& Parameters)
 		Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		Box->SetCollisionResponseToAllChannels(ECR_Block);
 		Box->RegisterComponent();
-		Blocker->SetActorLocation(FVector(1500.0f, 0.0f, 0.0f));
+		Blocker->SetActorLocation(Origin + FVector(1500.0f, 0.0f, 0.0f));
+		Blocker->AttachToActor(Near, FAttachmentTransformRules::KeepWorldTransform);
 		Turret->Tick(0.0f);
-		TestTrue(TEXT("Occluded nearest vehicle is skipped"), Turret->GetTarget() == Far);
+		TestTrue(TEXT("Part occluded by an actor on the same vehicle is skipped"), Turret->GetTarget() == FarTank);
 		Far->Destroy();
 		Turret->Tick(0.0f);
-		TestNull(TEXT("Blocked and out-of-range vehicles are not targets"), Turret->GetTarget());
+		TestNull(TEXT("Blocked and out-of-range parts are not targets"), Turret->GetTarget());
 		Blocker->Destroy();
 		Near->Destroy();
+		if (OwnExtraTank)
+		{
+			OwnExtraTank->Destroy();
+		}
+		if (UnattachedTank)
+		{
+			UnattachedTank->Destroy();
+		}
 		Turret->Tick(0.0f);
 		TestTrue(TEXT("No target resets aim to vehicle forward"), FVector::DotProduct(Turret->GetActorForwardVector(), Shooter->GetActorForwardVector()) > 0.999f);
 

@@ -13,6 +13,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/VerticalBox.h"
 #include "Components/TextBlock.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -297,21 +299,83 @@ bool FMadRunFuelTankTest::RunTest(const FString& Parameters)
 			UOverlay* Overlay = Cast<UOverlay>(UI->GetRootWidget());
 			if (TestNotNull(TEXT("HUD has an overlay root"), Overlay))
 			{
-				TestEqual(TEXT("Original HUD and fuel display are present"), Overlay->GetChildrenCount(), 2);
+				if (TestEqual(TEXT("Original HUD and status display are present"), Overlay->GetChildrenCount(), 2))
+				{
+					UOverlaySlot* OriginalSlot = Cast<UOverlaySlot>(Overlay->GetChildAt(0)->Slot);
+					UOverlaySlot* StatusSlot = Cast<UOverlaySlot>(Overlay->GetChildAt(1)->Slot);
+					if (TestNotNull(TEXT("Original HUD slot"), OriginalSlot) && TestNotNull(TEXT("Status slot"), StatusSlot))
+					{
+						TestTrue(TEXT("Original HUD is at the bottom right"),
+							OriginalSlot->GetHorizontalAlignment() == HAlign_Right && OriginalSlot->GetVerticalAlignment() == VAlign_Bottom);
+						TestTrue(TEXT("Status panel is at the top left"),
+							StatusSlot->GetHorizontalAlignment() == HAlign_Left && StatusSlot->GetVerticalAlignment() == VAlign_Top);
+					}
+				}
 			}
 			UTextBlock* FuelText = Cast<UTextBlock>(UI->GetWidgetFromName(TEXT("FuelText")));
-			if (TestNotNull(TEXT("Fuel text exists"), FuelText))
+			UTextBlock* TankHealthText = Cast<UTextBlock>(UI->GetWidgetFromName(TEXT("TankHealthText")));
+			UVerticalBox* WheelBox = Cast<UVerticalBox>(UI->GetWidgetFromName(TEXT("WheelHealthBox")));
+			AMadRunOffroadCar* UICar = CarClass
+				? World->SpawnActor<AMadRunOffroadCar>(CarClass, FVector(3000.0f, 0.0f, 0.0f), FRotator::ZeroRotator)
+				: nullptr;
+			if (TestNotNull(TEXT("Fuel text exists"), FuelText)
+				&& TestNotNull(TEXT("Tank health text exists"), TankHealthText)
+				&& TestNotNull(TEXT("Wheel health box exists"), WheelBox)
+				&& TestNotNull(TEXT("UI test vehicle"), UICar))
 			{
 				TestEqual(TEXT("Fuel is unavailable before the first update"), FuelText->GetText().ToString(), FString(TEXT("Fuel: --")));
-				UI->UpdateFuel(12.5f, 100.0f);
-				FNumberFormattingOptions Options;
-				Options.SetMinimumFractionalDigits(1);
-				Options.SetMaximumFractionalDigits(1);
-				const FString Expected = FText::Format(FText::FromString(TEXT("Fuel: {0} / {1} L")),
-					FText::AsNumber(12.5f, &Options), FText::AsNumber(100.0f, &Options)).ToString();
-				TestEqual(TEXT("Fuel display shows current amount and capacity"), FuelText->GetText().ToString(), Expected);
-				UI->ClearFuel();
-				TestEqual(TEXT("Missing tank clears previous value"), FuelText->GetText().ToString(), FString(TEXT("Fuel: --")));
+				TestEqual(TEXT("Tank health is unavailable before the first update"), TankHealthText->GetText().ToString(), FString(TEXT("Fuel tank: --")));
+				AMadRunFuelTank* UITank = UICar->GetFuelTank();
+				UMadRunWheelBase* UIWheel = UICar->GetWheelByIndex(0);
+				if (TestNotNull(TEXT("UI test tank"), UITank) && TestNotNull(TEXT("UI test wheel"), UIWheel))
+				{
+					const TSharedRef<SWidget> SlateWidget = UI->TakeWidget();
+					IMadRunPartHealth::Execute_SetHealth(UITank, 4);
+					IMadRunPartHealth::Execute_SetHealth(UIWheel, 0);
+					UI->UpdateVehicleStatus(UICar);
+					FNumberFormattingOptions Options;
+					Options.SetMinimumFractionalDigits(1);
+					Options.SetMaximumFractionalDigits(1);
+					const FString Expected = FText::Format(FText::FromString(TEXT("Fuel: {0} / {1} L")),
+						FText::AsNumber(UITank->GetFuel(), &Options), FText::AsNumber(UITank->GetCapacity(), &Options)).ToString();
+					TestEqual(TEXT("Fuel display shows current amount and capacity"), FuelText->GetText().ToString(), Expected);
+					TestEqual(TEXT("Tank health displays current and max health"), TankHealthText->GetText().ToString(), FString(TEXT("Fuel tank: 4 / 10")));
+					TestEqual(TEXT("All four wheel rows are present"), WheelBox->GetChildrenCount(), 4);
+					UTextBlock* WheelText = Cast<UTextBlock>(WheelBox->GetChildAt(0));
+					if (TestNotNull(TEXT("First wheel health text"), WheelText))
+					{
+						TestEqual(TEXT("Broken wheel displays zero health"), WheelText->GetText().ToString(), FString(TEXT("Wheel 0: 0 / 10")));
+						IMadRunPartHealth::Execute_DoRepair(UIWheel);
+						IMadRunPartHealth::Execute_DoRepair(UITank);
+						UI->UpdateVehicleStatus(UICar);
+						TestEqual(TEXT("Wheel health updates after repair"), WheelText->GetText().ToString(), FString(TEXT("Wheel 0: 10 / 10")));
+						TestEqual(TEXT("Tank health updates after repair"), TankHealthText->GetText().ToString(), FString(TEXT("Fuel tank: 10 / 10")));
+					}
+					UI->UpdateVehicleStatus(nullptr);
+					TestEqual(TEXT("Missing vehicle clears fuel"), FuelText->GetText().ToString(), FString(TEXT("Fuel: --")));
+					TestEqual(TEXT("Missing vehicle clears tank health"), TankHealthText->GetText().ToString(), FString(TEXT("Fuel tank: --")));
+					TestTrue(TEXT("Missing vehicle hides wheel rows"), WheelText && WheelText->GetVisibility() == ESlateVisibility::Collapsed);
+					UI->UpdateVehicleStatus(UICar);
+					TestTrue(TEXT("Wheel rows return on possession"), WheelText && WheelText->GetVisibility() != ESlateVisibility::Collapsed);
+					TestEqual(TEXT("Wheel rows are reused"), WheelBox->GetChildrenCount(), 4);
+
+					UI->ForceLayoutPrepass();
+					if (Overlay && Overlay->GetChildrenCount() == 2)
+					{
+						const FVector2D OriginalSize = Overlay->GetChildAt(0)->GetDesiredSize();
+						const FVector2D StatusSize = Overlay->GetChildAt(1)->GetDesiredSize();
+						TestTrue(FString::Printf(TEXT("HUD and status have nonzero desired sizes (HUD %s, status %s)"),
+							*OriginalSize.ToString(), *StatusSize.ToString()),
+							OriginalSize.X > 0.0 && OriginalSize.Y > 0.0 && StatusSize.X > 0.0 && StatusSize.Y > 0.0);
+						TestTrue(TEXT("Panels fit without overlapping at 1280x720"),
+							OriginalSize.X + StatusSize.X + 48.0 <= 1280.0 || OriginalSize.Y + StatusSize.Y + 48.0 <= 720.0);
+					}
+					UITank->Destroy();
+					UI->UpdateVehicleStatus(UICar);
+					TestEqual(TEXT("Missing tank clears fuel"), FuelText->GetText().ToString(), FString(TEXT("Fuel: --")));
+					TestEqual(TEXT("Missing tank clears tank health"), TankHealthText->GetText().ToString(), FString(TEXT("Fuel tank: --")));
+					TestTrue(TEXT("Wheel health remains visible without a tank"), WheelText && WheelText->GetVisibility() != ESlateVisibility::Collapsed);
+				}
 			}
 		}
 	}

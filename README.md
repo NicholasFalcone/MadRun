@@ -23,8 +23,11 @@ La root del serbatoio e un componente `Tank Mesh`: assegnargli una static
 mesh nel Blueprint del serbatoio. La mesh non ha collisione per impostazione
 predefinita; la hitbox figlia continua a gestire i colpi.
 
-La UI del veicolo mostra in alto a sinistra il carburante corrente e la
-capacita, in litri. Se non e disponibile un serbatoio viene mostrato `--`.
+La UI del veicolo mostra in alto a sinistra carburante corrente e capacita
+in litri, salute del serbatoio e salute delle ruote con i rispettivi massimi.
+Le ruote sono identificate dagli indici di `Get Wheel By Index`. Una parte
+non disponibile viene indicata con `--`; senza veicolo le righe delle ruote
+vengono rimosse. Velocita e marcia restano separate in basso a destra.
 
 Il serbatoio riceve il danno Unreal (`Apply Damage`, `Apply Point Damage` e
 `Apply Radial Damage`): ogni valore positivo viene arrotondato per eccesso
@@ -89,9 +92,13 @@ nel Blueprint del veicolo.
 
 Il veicolo OffRoad ha una torretta `Roof Turret` sul tetto. Tenendo premuto
 il tasto sinistro del mouse spara proiettili ogni 0,2 secondi. Mira al
-veicolo MadRun piu vicino entro 100 metri, se il percorso del proiettile
-verso il centro della sua mesh non e bloccato; tutti gli altri veicoli sono
-considerati nemici. Senza bersagli spara in avanti rispetto al veicolo.
+pezzo funzionante piu vicino di un altro veicolo MadRun entro 100 metri,
+se il percorso del proiettile verso il centro della sua hitbox non e bloccato.
+La torretta considera il serbatoio e le hitbox delle ruote, oltre agli Actor
+collegati al veicolo che implementano `MadRun Part Health`. I pezzi con salute
+zero non sono bersagli; dopo una riparazione possono essere selezionati di nuovo.
+`Get Target` restituisce l'Actor della parte, oppure la hitbox nel caso di una ruota.
+Tutti gli altri veicoli sono considerati nemici. Senza bersagli spara in avanti rispetto al veicolo.
 La selezione non predice il movimento del bersaglio e la carrozzeria puo
 schermare ruote e serbatoio.
 

@@ -28,10 +28,10 @@ public:
 	void StopFire();
 
 	UFUNCTION(BlueprintPure, Category="Turret")
-	AMadRunPawn* GetTarget() const { return Target.Get(); }
+	AActor* GetTarget() const { return Target.Get(); }
 
 private:
-	AMadRunPawn* FindTarget() const;
+	AActor* FindTarget() const;
 	void Fire();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
@@ -52,7 +52,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category="Turret", meta=(ClampMin="0.0", Units="cm"))
 	float MuzzleDistance = 100.0f;
 
-	TWeakObjectPtr<AMadRunPawn> Target;
+	TWeakObjectPtr<AActor> Target;
 	bool bFiring = false;
 	double NextFireTime = 0.0;
 

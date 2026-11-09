@@ -7,10 +7,12 @@
 #include "MadRunUI.generated.h"
 
 class UTextBlock;
+class UVerticalBox;
+class AMadRunPawn;
 
 /**
  *  Simple Vehicle HUD class
- *  Displays the current speed, gear and fuel.
+ *  Displays the current speed, gear, fuel and part health.
  *  Widget setup is handled in a Blueprint subclass.
  */
 UCLASS(abstract)
@@ -34,11 +36,8 @@ public:
 	/** Called to update the gear display */
 	void UpdateGear(int32 NewGear);
 
-	/** Updates the fuel display in litres. */
-	void UpdateFuel(float Fuel, float Capacity);
-
-	/** Indicates that the current vehicle has no available tank. */
-	void ClearFuel();
+	/** Updates or clears the status of the controlled vehicle. */
+	void UpdateVehicleStatus(const AMadRunPawn* Vehicle);
 
 protected:
 
@@ -53,4 +52,13 @@ protected:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> FuelText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TankHealthText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> WheelHealthBox;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> WheelHealthTexts;
 };

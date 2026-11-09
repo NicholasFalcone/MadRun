@@ -1,11 +1,13 @@
 #include "MadRunTurret.h"
 #include "MadRunPawn.h"
+#include "MadRunPartHealth.h"
 #include "MadRunProjectile.h"
+#include "MadRunWheelBase.h"
+#include "MadRunWheelHitActor.h"
 #include "MadRunCollision.h"
 #include "MadRun.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "UObject/ConstructorHelpers.h"
@@ -28,7 +30,7 @@ AMadRunTurret::AMadRunTurret()
 	ProjectileClass = AMadRunProjectile::StaticClass();
 }
 
-AMadRunPawn* AMadRunTurret::FindTarget() const
+AActor* AMadRunTurret::FindTarget() const
 {
 	const AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());
 	if (!IsValid(Vehicle))
@@ -41,7 +43,7 @@ AMadRunPawn* AMadRunTurret::FindTarget() const
 	TArray<AActor*> Attached;
 	Vehicle->GetAttachedActors(Attached, true, true);
 	Params.AddIgnoredActors(Attached);
-	AMadRunPawn* Best = nullptr;
+	AActor* Best = nullptr;
 	float BestDistanceSquared = FMath::Square(FMath::Max(0.0f, TargetRange));
 	const FVector Origin = GetActorLocation();
 	for (TActorIterator<AMadRunPawn> It(GetWorld()); It; ++It)
@@ -51,21 +53,41 @@ AMadRunPawn* AMadRunTurret::FindTarget() const
 		{
 			continue;
 		}
-		const FVector AimPoint = Candidate->GetMesh()->Bounds.Origin;
-		const float DistanceSquared = FVector::DistSquared(Origin, AimPoint);
-		if (DistanceSquared >= BestDistanceSquared)
+		TArray<AActor*> Parts;
+		Candidate->GetAttachedActors(Parts, true, true);
+		for (AActor* Part : Parts)
 		{
-			continue;
+			if (!IsValid(Part) || Part->IsActorBeingDestroyed())
+			{
+				continue;
+			}
+			UObject* HealthObject = Part;
+			if (AMadRunWheelHitActor* WheelHitActor = Cast<AMadRunWheelHitActor>(Part))
+			{
+				HealthObject = WheelHitActor->GetWheel();
+			}
+			if (!IsValid(HealthObject) || !HealthObject->GetClass()->ImplementsInterface(UMadRunPartHealth::StaticClass())
+				|| IMadRunPartHealth::Execute_GetHealth(HealthObject) <= 0)
+			{
+				continue;
+			}
+			FVector AimPoint;
+			FVector Extent;
+			Part->GetActorBounds(true, AimPoint, Extent);
+			const float DistanceSquared = FVector::DistSquared(Origin, AimPoint);
+			if (DistanceSquared >= BestDistanceSquared)
+			{
+				continue;
+			}
+			FHitResult Hit;
+			if (!GetWorld()->LineTraceSingleByChannel(Hit, Origin, AimPoint, MadRunProjectileChannel, Params)
+				|| Hit.GetActor() != Part)
+			{
+				continue;
+			}
+			Best = Part;
+			BestDistanceSquared = DistanceSquared;
 		}
-		FHitResult Hit;
-		const bool bBlocked = GetWorld()->LineTraceSingleByChannel(Hit, Origin, AimPoint, MadRunProjectileChannel, Params);
-		AActor* HitActor = Hit.GetActor();
-		if (bBlocked && HitActor != Candidate && (!HitActor || !HitActor->IsAttachedTo(Candidate)))
-		{
-			continue;
-		}
-		Best = Candidate;
-		BestDistanceSquared = DistanceSquared;
 	}
 	return Best;
 }
@@ -74,9 +96,12 @@ void AMadRunTurret::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	Target = FindTarget();
-	if (AMadRunPawn* CurrentTarget = Target.Get())
+	if (AActor* CurrentTarget = Target.Get())
 	{
-		SetActorRotation((CurrentTarget->GetMesh()->Bounds.Origin - GetActorLocation()).Rotation());
+		FVector AimPoint;
+		FVector Extent;
+		CurrentTarget->GetActorBounds(true, AimPoint, Extent);
+		SetActorRotation((AimPoint - GetActorLocation()).Rotation());
 	}
 	else if (const AActor* Parent = GetParentActor())
 	{

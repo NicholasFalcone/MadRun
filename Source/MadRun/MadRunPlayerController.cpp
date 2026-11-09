@@ -3,7 +3,6 @@
 
 #include "MadRunPlayerController.h"
 #include "MadRunPawn.h"
-#include "MadRunFuelTank.h"
 #include "MadRunUI.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -161,13 +160,12 @@ void AMadRunPlayerController::Tick(float Delta)
 		{
 			VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
 			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
-			if (AMadRunFuelTank* Tank = VehiclePawn->GetFuelTank())
-			{
-				VehicleUI->UpdateFuel(Tank->GetFuel(), Tank->GetCapacity());
-				return;
-			}
+			VehicleUI->UpdateVehicleStatus(VehiclePawn);
 		}
-		VehicleUI->ClearFuel();
+		else
+		{
+			VehicleUI->UpdateVehicleStatus(nullptr);
+		}
 	}
 }
 
