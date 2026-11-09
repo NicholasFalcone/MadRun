@@ -3,7 +3,10 @@
 #include "MadRunCollision.h"
 #include "MadRunPawn.h"
 #include "MadRunWheelBase.h"
+#include "MadRunPartHealthDisplay.h"
 #include "Components/SphereComponent.h"
+
+#define LOCTEXT_NAMESPACE "MadRunWheelHitActor"
 
 AMadRunWheelHitActor::AMadRunWheelHitActor()
 {
@@ -16,12 +19,44 @@ AMadRunWheelHitActor::AMadRunWheelHitActor()
 	Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Hitbox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	Hitbox->SetCollisionResponseToChannel(MadRunProjectileChannel, ECR_Block);
+
+	HealthDisplay = CreateDefaultSubobject<UMadRunPartHealthDisplay>(TEXT("Health Display"));
+	HealthDisplay->SetupAttachment(Hitbox);
+	HealthDisplay->SetPartName(LOCTEXT("WheelName", "Wheel"));
 }
 
 void AMadRunWheelHitActor::InitializeWheel(AMadRunPawn* InVehicle, int32 InWheelIndex)
 {
+	if (IsValid(ObservedWheel))
+	{
+		ObservedWheel->OnHealthChanged.RemoveDynamic(this, &AMadRunWheelHitActor::HandleHealthChanged);
+	}
 	Vehicle = InVehicle;
 	WheelIndex = InWheelIndex;
+	ObservedWheel = GetWheel();
+	if (IsValid(ObservedWheel))
+	{
+		ObservedWheel->OnHealthChanged.AddUniqueDynamic(this, &AMadRunWheelHitActor::HandleHealthChanged);
+	}
+	else
+	{
+		UE_LOG(LogMadRun, Error, TEXT("Cannot display health for wheel %d on '%s': wheel is unavailable."), WheelIndex, *GetNameSafe(Vehicle));
+	}
+}
+
+void AMadRunWheelHitActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (IsValid(ObservedWheel))
+	{
+		ObservedWheel->OnHealthChanged.RemoveDynamic(this, &AMadRunWheelHitActor::HandleHealthChanged);
+	}
+	ObservedWheel = nullptr;
+	Super::EndPlay(EndPlayReason);
+}
+
+void AMadRunWheelHitActor::HandleHealthChanged(int32 Health, int32 MaxHealth)
+{
+	HealthDisplay->ShowHealth(Health, MaxHealth);
 }
 
 UMadRunWheelBase* AMadRunWheelHitActor::GetWheel() const
@@ -53,3 +88,5 @@ float AMadRunWheelHitActor::TakeDamage(float DamageAmount, const FDamageEvent& D
 	}
 	return AppliedDamage;
 }
+
+#undef LOCTEXT_NAMESPACE

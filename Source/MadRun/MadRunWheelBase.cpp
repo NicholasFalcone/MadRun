@@ -25,6 +25,10 @@ void UMadRunWheelBase::SetHealth_Implementation(int32 NewHealth)
 		SetWheelOperational(true);
 		OnRepaired.Broadcast();
 	}
+	if (OldHealth != PartHealth.Health)
+	{
+		OnHealthChanged.Broadcast(PartHealth.Health, GetMaxHealth_Implementation());
+	}
 }
 
 void UMadRunWheelBase::SetWheelOperational(bool bOperational)

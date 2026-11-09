@@ -7,6 +7,7 @@
 
 class UBoxComponent;
 class UStaticMeshComponent;
+class UMadRunPartHealthDisplay;
 
 UCLASS(Blueprintable)
 class AMadRunFuelTank : public AActor, public IMadRunPartHealth
@@ -44,6 +45,9 @@ public:
 	FOnRepaired OnRepaired;
 
 private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunPartHealthDisplay> HealthDisplay;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UStaticMeshComponent> TankMesh;
 

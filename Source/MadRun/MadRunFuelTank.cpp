@@ -1,8 +1,11 @@
 #include "MadRunFuelTank.h"
 #include "MadRun.h"
 #include "MadRunCollision.h"
+#include "MadRunPartHealthDisplay.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+
+#define LOCTEXT_NAMESPACE "MadRunFuelTank"
 
 AMadRunFuelTank::AMadRunFuelTank()
 {
@@ -19,6 +22,11 @@ AMadRunFuelTank::AMadRunFuelTank()
 	Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Hitbox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	Hitbox->SetCollisionResponseToChannel(MadRunProjectileChannel, ECR_Block);
+
+	HealthDisplay = CreateDefaultSubobject<UMadRunPartHealthDisplay>(TEXT("Health Display"));
+	HealthDisplay->SetupAttachment(TankMesh);
+	HealthDisplay->SetHeightAbovePart(80.0f);
+	HealthDisplay->SetPartName(LOCTEXT("TankName", "Fuel tank"));
 }
 
 void AMadRunFuelTank::BeginPlay()
@@ -60,6 +68,10 @@ void AMadRunFuelTank::SetHealth_Implementation(int32 NewHealth)
 	{
 		OnRepaired.Broadcast();
 	}
+	if (OldHealth != PartHealth.Health && HasActorBegunPlay())
+	{
+		HealthDisplay->ShowHealth(PartHealth.Health, GetMaxHealth_Implementation());
+	}
 }
 
 void AMadRunFuelTank::TakeDamage_Implementation(int32 DamageAmount)
@@ -99,3 +111,5 @@ void AMadRunFuelTank::ConsumeFuel(float DeltaSeconds, float Throttle)
 		+ FMath::Max(MaxLeakPerSecond, 0.0f) * FMath::Clamp(DamageFraction, 0.0f, 1.0f);
 	Fuel = FMath::Max(0.0f, Fuel - Rate * DeltaSeconds);
 }
+
+#undef LOCTEXT_NAMESPACE

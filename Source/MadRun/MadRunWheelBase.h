@@ -31,4 +31,7 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category="Health")
 	FOnRepaired OnRepaired;
+
+	UPROPERTY(BlueprintAssignable, Category="Health")
+	FOnPartHealthChanged OnHealthChanged;
 };

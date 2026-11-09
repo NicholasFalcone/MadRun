@@ -6,6 +6,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnOutofWork);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRepaired);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPartHealthChanged, int32, Health, int32, MaxHealth);
 
 USTRUCT(BlueprintType)
 struct FMadRunPartHealthState
