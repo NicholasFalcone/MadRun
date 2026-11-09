@@ -6,6 +6,7 @@
 #include "MadRunFuelTank.generated.h"
 
 class UBoxComponent;
+class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
 class AMadRunFuelTank : public AActor, public IMadRunPartHealth
@@ -43,6 +44,9 @@ public:
 	FOnRepaired OnRepaired;
 
 private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UStaticMeshComponent> TankMesh;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBoxComponent> Hitbox;
 

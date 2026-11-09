@@ -3,8 +3,12 @@
 
 #include "MadRunPlayerController.h"
 #include "MadRunPawn.h"
+#include "MadRunFuelTank.h"
 #include "MadRunUI.h"
 #include "EnhancedInputSubsystems.h"
+#include "EnhancedInputComponent.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "MadRun.h"
@@ -58,6 +62,31 @@ void AMadRunPlayerController::BeginPlay()
 void AMadRunPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+
+	if (!FireAction)
+	{
+		FireAction = NewObject<UInputAction>(this, TEXT("TurretFireAction"));
+		FireAction->ValueType = EInputActionValueType::Boolean;
+		FireMappingContext = NewObject<UInputMappingContext>(this, TEXT("TurretFireMapping"));
+		if (FireKey.IsValid())
+		{
+			FireMappingContext->MapKey(FireAction, FireKey);
+		}
+		else
+		{
+			UE_LOG(LogMadRun, Error, TEXT("Cannot map turret fire: Fire Key is invalid."));
+		}
+	}
+	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))
+	{
+		EnhancedInput->BindAction(FireAction, ETriggerEvent::Started, this, &AMadRunPlayerController::StartTurretFire);
+		EnhancedInput->BindAction(FireAction, ETriggerEvent::Completed, this, &AMadRunPlayerController::StopTurretFire);
+		EnhancedInput->BindAction(FireAction, ETriggerEvent::Canceled, this, &AMadRunPlayerController::StopTurretFire);
+	}
+	else
+	{
+		UE_LOG(LogMadRun, Error, TEXT("Cannot bind turret fire: controller has no Enhanced Input component."));
+	}
 	
 	// only add IMCs for local player controllers
 	if (IsLocalPlayerController())
@@ -65,6 +94,7 @@ void AMadRunPlayerController::SetupInputComponent()
 		// Add Input Mapping Contexts
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 		{
+			Subsystem->AddMappingContext(FireMappingContext, 0);
 			for (UInputMappingContext* CurrentContext : DefaultMappingContexts)
 			{
 				Subsystem->AddMappingContext(CurrentContext, 0);
@@ -78,18 +108,66 @@ void AMadRunPlayerController::SetupInputComponent()
 					Subsystem->AddMappingContext(CurrentContext, 0);
 				}
 			}
+			else
+			{
+				UE_LOG(LogMadRun, Error, TEXT("Cannot map turret fire: Enhanced Input local player subsystem is unavailable."));
+			}
 		}
 	}
+}
+
+void AMadRunPlayerController::EndPlay(EEndPlayReason::Type EndPlayReason)
+{
+	StopTurretFire();
+	if (IsLocalPlayerController())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+		{
+			Subsystem->RemoveMappingContext(FireMappingContext);
+		}
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void AMadRunPlayerController::StartTurretFire()
+{
+	if (AMadRunPawn* ControlledVehicle = Cast<AMadRunPawn>(GetPawn()))
+	{
+		ControlledVehicle->DoFireStart();
+	}
+}
+
+void AMadRunPlayerController::StopTurretFire()
+{
+	if (AMadRunPawn* ControlledVehicle = Cast<AMadRunPawn>(GetPawn()))
+	{
+		ControlledVehicle->DoFireStop();
+	}
+}
+
+void AMadRunPlayerController::OnUnPossess()
+{
+	StopTurretFire();
+	Super::OnUnPossess();
 }
 
 void AMadRunPlayerController::Tick(float Delta)
 {
 	Super::Tick(Delta);
 
-	if (IsValid(VehiclePawn) && IsValid(VehicleUI))
+	if (IsValid(VehicleUI))
 	{
-		VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
-		VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
+		if (IsValid(VehiclePawn) && !VehiclePawn->IsActorBeingDestroyed() && GetPawn() == VehiclePawn)
+		{
+			VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
+			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
+			if (AMadRunFuelTank* Tank = VehiclePawn->GetFuelTank())
+			{
+				VehicleUI->UpdateFuel(Tank->GetFuel(), Tank->GetCapacity());
+				return;
+			}
+		}
+		VehicleUI->ClearFuel();
 	}
 }
 

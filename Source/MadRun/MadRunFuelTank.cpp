@@ -1,17 +1,24 @@
 #include "MadRunFuelTank.h"
 #include "MadRun.h"
+#include "MadRunCollision.h"
 #include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 AMadRunFuelTank::AMadRunFuelTank()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	TankMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Tank Mesh"));
+	SetRootComponent(TankMesh);
+	TankMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 	Hitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("Hitbox"));
-	SetRootComponent(Hitbox);
+	Hitbox->SetupAttachment(TankMesh);
 	Hitbox->InitBoxExtent(FVector(20.0f));
-	Hitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Hitbox->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	Hitbox->SetCollisionObjectType(ECC_WorldDynamic);
 	Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Hitbox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	Hitbox->SetCollisionResponseToChannel(MadRunProjectileChannel, ECR_Block);
 }
 
 void AMadRunFuelTank::BeginPlay()
@@ -24,6 +31,7 @@ void AMadRunFuelTank::BeginPlay()
 float AMadRunFuelTank::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
+	UE_LOG(LogMadRun, Log, TEXT("Fuel tank taking damage: %f"), DamageAmount);
 	if (!FMath::IsFinite(DamageAmount) || DamageAmount < 0.0f)
 	{
 		UE_LOG(LogMadRun, Warning, TEXT("Fuel tank damage must be finite and non-negative."));

@@ -11,7 +11,9 @@ class USpringArmComponent;
 class UInputAction;
 class UChaosWheeledVehicleMovementComponent;
 class AMadRunFuelTank;
+class UMadRunWheelBase;
 class UChildActorComponent;
+class AMadRunTurret;
 struct FInputActionValue;
 
 /**
@@ -103,6 +105,7 @@ public:
 	// Begin Pawn interface
 
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
+	virtual void UnPossessed() override;
 
 	// End Pawn interface
 
@@ -212,4 +215,17 @@ public:
 	FORCEINLINE const TObjectPtr<UChaosWheeledVehicleMovementComponent>& GetChaosVehicleMovement() const { return ChaosVehicleMovement; }
 	UFUNCTION(BlueprintPure, Category="Fuel")
 	AMadRunFuelTank* GetFuelTank() const;
+
+	/** Returns a runtime wheel by its Wheel Setups index, or null if unavailable. */
+	UFUNCTION(BlueprintCallable, Category="Vehicle|Wheels")
+	UMadRunWheelBase* GetWheelByIndex(int32 WheelIndex) const;
+
+	UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
+	virtual AMadRunTurret* GetTurret() const { return nullptr; }
+
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoFireStart();
+
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoFireStop();
 };

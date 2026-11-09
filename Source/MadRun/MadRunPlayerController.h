@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "MadRunPlayerController.generated.h"
 
 class UInputMappingContext;
 class AMadRunPawn;
 class UMadRunUI;
+class UInputAction;
 
 /**
  *  Vehicle Player Controller class
@@ -28,6 +30,15 @@ protected:
 	/** Input Mapping Contexts */
 	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
 	TArray<UInputMappingContext*> MobileExcludedMappingContexts;
+
+	UPROPERTY(EditDefaultsOnly, Category="Input|Turret")
+	FKey FireKey = EKeys::LeftMouseButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FireAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> FireMappingContext;
 
 	/** Mobile controls widget to spawn */
 	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
@@ -73,6 +84,7 @@ protected:
 
 	/** Input setup */
 	virtual void SetupInputComponent() override;
+	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
 public:
 
@@ -83,6 +95,10 @@ protected:
 
 	/** Pawn setup */
 	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
+
+	void StartTurretFire();
+	void StopTurretFire();
 
 	/** Handles pawn destruction and respawning */
 	UFUNCTION()

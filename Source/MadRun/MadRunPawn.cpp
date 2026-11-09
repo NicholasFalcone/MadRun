@@ -2,6 +2,8 @@
 
 #include "MadRunPawn.h"
 #include "MadRunFuelTank.h"
+#include "MadRunWheelBase.h"
+#include "MadRunTurret.h"
 #include "Components/ChildActorComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -110,10 +112,33 @@ void AMadRunPawn::BeginPlay()
 
 void AMadRunPawn::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
+	DoFireStop();
 	// clear the flipped check timer
 	GetWorld()->GetTimerManager().ClearTimer(FlipCheckTimer);
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void AMadRunPawn::UnPossessed()
+{
+	DoFireStop();
+	Super::UnPossessed();
+}
+
+void AMadRunPawn::DoFireStart()
+{
+	if (AMadRunTurret* Turret = GetTurret())
+	{
+		Turret->StartFire();
+	}
+}
+
+void AMadRunPawn::DoFireStop()
+{
+	if (AMadRunTurret* Turret = GetTurret())
+	{
+		Turret->StopFire();
+	}
 }
 
 void AMadRunPawn::Tick(float Delta)
@@ -154,6 +179,21 @@ void AMadRunPawn::Tick(float Delta)
 AMadRunFuelTank* AMadRunPawn::GetFuelTank() const
 {
 	return IsValid(FuelTank) ? Cast<AMadRunFuelTank>(FuelTank->GetChildActor()) : nullptr;
+}
+
+UMadRunWheelBase* AMadRunPawn::GetWheelByIndex(int32 WheelIndex) const
+{
+	if (!ChaosVehicleMovement || !ChaosVehicleMovement->Wheels.IsValidIndex(WheelIndex))
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' has no wheel at index %d."), *GetNameSafe(this), WheelIndex);
+		return nullptr;
+	}
+	UMadRunWheelBase* Wheel = Cast<UMadRunWheelBase>(ChaosVehicleMovement->Wheels[WheelIndex]);
+	if (!Wheel)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Wheel %d on vehicle '%s' does not implement MadRun wheel health."), WheelIndex, *GetNameSafe(this));
+	}
+	return Wheel;
 }
 
 void AMadRunPawn::Steering(const FInputActionValue& Value)

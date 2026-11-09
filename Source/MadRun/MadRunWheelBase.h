@@ -16,6 +16,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Health", meta=(AllowPrivateAccess="true", ShowOnlyInnerProperties))
 	FMadRunPartHealthState PartHealth;
 
+	void SetWheelOperational(bool bOperational);
+
 public:
 	virtual void Init(UChaosWheeledVehicleMovementComponent* InVehicleSim, int32 InWheelIndex) override;
 	virtual int32 GetHealth_Implementation() const override;
