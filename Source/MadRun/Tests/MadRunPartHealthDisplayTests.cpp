@@ -7,7 +7,7 @@
 #include "MadRunWheelBase.h"
 #include "MadRunWheelHitActor.h"
 #include "OffroadCar/MadRunOffroadCar.h"
-#include "Components/Slider.h"
+#include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -92,12 +92,12 @@ bool FMadRunPartHealthDisplayTest::RunTest(const FString& Parameters)
 
 	UMadRunPartHealthWidget* Widget = Cast<UMadRunPartHealthWidget>(WheelDisplay->GetUserWidgetObject());
 	UTextBlock* Label = Widget ? Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("HealthLabel"))) : nullptr;
-	USlider* Slider = Widget ? Cast<USlider>(Widget->GetWidgetFromName(TEXT("HealthSlider"))) : nullptr;
-	if (TestNotNull(TEXT("Health label"), Label) && TestNotNull(TEXT("Health slider"), Slider))
+	UProgressBar* HealthBar = Widget ? Cast<UProgressBar>(Widget->GetWidgetFromName(TEXT("HealthBar"))) : nullptr;
+	if (TestNotNull(TEXT("Health label"), Label) && TestNotNull(TEXT("Health bar"), HealthBar))
 	{
 		TestTrue(TEXT("Label displays current and max health"), Label->GetText().ToString().Contains(TEXT("6 / 10")));
-		TestTrue(TEXT("Slider displays health fraction"), FMath::IsNearlyEqual(Slider->GetValue(), 0.6f));
-		TestTrue(TEXT("Slider cannot be changed by input"), Slider->IsLocked());
+		TestTrue(TEXT("Progress bar displays health fraction"), FMath::IsNearlyEqual(HealthBar->GetPercent(), 0.6f));
+		TestTrue(TEXT("Progress bar does not intercept input"), HealthBar->GetVisibility() == ESlateVisibility::HitTestInvisible);
 	}
 
 	int32 Step = 0;

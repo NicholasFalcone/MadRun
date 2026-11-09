@@ -4,7 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "MadRunPartHealthWidget.generated.h"
 
-class USlider;
+class UProgressBar;
 class UTextBlock;
 
 UCLASS()
@@ -21,5 +21,5 @@ private:
 	TObjectPtr<UTextBlock> Label;
 
 	UPROPERTY(Transient)
-	TObjectPtr<USlider> Slider;
+	TObjectPtr<UProgressBar> HealthBar;
 };
