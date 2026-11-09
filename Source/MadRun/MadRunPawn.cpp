@@ -99,6 +99,17 @@ void AMadRunPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputCo
 
 void AMadRunPawn::BeginPlay()
 {
+	for (UMadRunEquipment* Initial : { static_cast<UMadRunEquipment*>(InitialEngineEquipment.Get()),
+		static_cast<UMadRunEquipment*>(InitialWeaponEquipment.Get()),
+		static_cast<UMadRunEquipment*>(InitialTiresEquipment.Get()),
+		static_cast<UMadRunEquipment*>(InitialFuelTankEquipment.Get()) })
+	{
+		if (Initial && !Equip(Initial))
+		{
+			UE_LOG(LogMadRun, Error, TEXT("Vehicle '%s' failed to equip initial equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Initial));
+		}
+	}
+
 	Super::BeginPlay();
 
 	if (!GetFuelTank())
@@ -179,6 +190,60 @@ void AMadRunPawn::Tick(float Delta)
 AMadRunFuelTank* AMadRunPawn::GetFuelTank() const
 {
 	return IsValid(FuelTank) ? Cast<AMadRunFuelTank>(FuelTank->GetChildActor()) : nullptr;
+}
+
+bool AMadRunPawn::Equip(UMadRunEquipment* Equipment)
+{
+	if (!IsValid(Equipment))
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot equip invalid equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Equipment));
+		return false;
+	}
+	if (UMadRunEngineEquipment* Engine = Cast<UMadRunEngineEquipment>(Equipment))
+	{
+		EngineEquipment = Engine;
+		return true;
+	}
+	if (UMadRunWeaponEquipment* Weapon = Cast<UMadRunWeaponEquipment>(Equipment))
+	{
+		AMadRunTurret* Turret = GetTurret();
+		if (!IsValid(Turret) || !Turret->ApplyEquipmentVisual(Weapon))
+		{
+			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot apply weapon equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Weapon));
+			return false;
+		}
+		WeaponEquipment = Weapon;
+		return true;
+	}
+	if (UMadRunTiresEquipment* Tires = Cast<UMadRunTiresEquipment>(Equipment))
+	{
+		if (!IsValid(Tires->Mesh) || !ApplyTiresMesh(Tires->Mesh))
+		{
+			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot apply tires equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Tires));
+			return false;
+		}
+		TiresEquipment = Tires;
+		return true;
+	}
+	if (UMadRunFuelTankEquipment* TankEquipment = Cast<UMadRunFuelTankEquipment>(Equipment))
+	{
+		AMadRunFuelTank* Tank = GetFuelTank();
+		if (!IsValid(Tank) || !Tank->ApplyEquipmentVisual(TankEquipment))
+		{
+			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot apply fuel tank equipment '%s'."), *GetNameSafe(this), *GetNameSafe(TankEquipment));
+			return false;
+		}
+		FuelTankEquipment = TankEquipment;
+		return true;
+	}
+	UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot equip unsupported equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Equipment));
+	return false;
+}
+
+bool AMadRunPawn::ApplyTiresMesh(UStaticMesh* TireMesh)
+{
+	UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' does not support tire visuals."), *GetNameSafe(this));
+	return false;
 }
 
 UMadRunWheelBase* AMadRunPawn::GetWheelByIndex(int32 WheelIndex) const

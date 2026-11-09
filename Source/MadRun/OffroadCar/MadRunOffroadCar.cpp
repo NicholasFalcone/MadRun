@@ -118,6 +118,36 @@ AMadRunTurret* AMadRunOffroadCar::GetTurret() const
 	return IsValid(RoofTurret) ? Cast<AMadRunTurret>(RoofTurret->GetChildActor()) : nullptr;
 }
 
+bool AMadRunOffroadCar::ApplyTiresMesh(UStaticMesh* TireMesh)
+{
+	UStaticMeshComponent* Tires[] = { TireFrontLeft, TireFrontRight, TireRearLeft, TireRearRight };
+	for (const UStaticMeshComponent* Tire : Tires)
+	{
+		if (!IsValid(Tire))
+		{
+			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' has a missing tire mesh component."), *GetNameSafe(this));
+			return false;
+		}
+	}
+	UStaticMesh* Previous[UE_ARRAY_COUNT(Tires)];
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Tires); ++Index)
+	{
+		Previous[Index] = Tires[Index]->GetStaticMesh();
+		if (Previous[Index] != TireMesh && !Tires[Index]->SetStaticMesh(TireMesh))
+		{
+			for (int32 Rollback = 0; Rollback < Index; ++Rollback)
+			{
+				if (Tires[Rollback]->GetStaticMesh() != Previous[Rollback] && !Tires[Rollback]->SetStaticMesh(Previous[Rollback]))
+				{
+					UE_LOG(LogMadRun, Error, TEXT("Vehicle '%s' could not restore tire mesh %d."), *GetNameSafe(this), Rollback);
+				}
+			}
+			return false;
+		}
+	}
+	return true;
+}
+
 void AMadRunOffroadCar::BeginPlay()
 {
 	Super::BeginPlay();

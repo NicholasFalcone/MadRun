@@ -1,5 +1,6 @@
 #include "MadRunWheelBase.h"
 #include "MadRun.h"
+#include "MadRunPawn.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 
 void UMadRunWheelBase::Init(UChaosWheeledVehicleMovementComponent* InVehicleSim, int32 InWheelIndex)
@@ -10,6 +11,13 @@ void UMadRunWheelBase::Init(UChaosWheeledVehicleMovementComponent* InVehicleSim,
 
 int32 UMadRunWheelBase::GetHealth_Implementation() const { return PartHealth.Health; }
 int32 UMadRunWheelBase::GetMaxHealth_Implementation() const { return FMath::Max(PartHealth.MaxHealth, 1); }
+
+UMadRunTiresEquipment* UMadRunWheelBase::GetEquipment() const
+{
+	const AMadRunPawn* Vehicle = IsValid(VehicleComponent) ? Cast<AMadRunPawn>(VehicleComponent->GetOwner()) : nullptr;
+	return IsValid(Vehicle) && VehicleComponent->Wheels.IsValidIndex(WheelIndex)
+		&& VehicleComponent->Wheels[WheelIndex] == this ? Vehicle->GetTiresEquipment() : nullptr;
+}
 
 void UMadRunWheelBase::SetHealth_Implementation(int32 NewHealth)
 {

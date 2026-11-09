@@ -30,6 +30,27 @@ AMadRunTurret::AMadRunTurret()
 	ProjectileClass = AMadRunProjectile::StaticClass();
 }
 
+UMadRunWeaponEquipment* AMadRunTurret::GetEquipment() const
+{
+	const AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());
+	return IsValid(Vehicle) && Vehicle->GetTurret() == this ? Vehicle->GetWeaponEquipment() : nullptr;
+}
+
+bool AMadRunTurret::ApplyEquipmentVisual(const UMadRunWeaponEquipment* Equipment)
+{
+	if (!IsValid(Equipment) || !IsValid(Equipment->Mesh) || !IsValid(Barrel))
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Turret '%s' requires a valid equipment mesh."), *GetNameSafe(this));
+		return false;
+	}
+	if (Barrel->GetStaticMesh() != Equipment->Mesh && !Barrel->SetStaticMesh(Equipment->Mesh))
+	{
+		return false;
+	}
+	Barrel->SetRelativeTransform(Equipment->MeshTransform);
+	return true;
+}
+
 AActor* AMadRunTurret::FindTarget() const
 {
 	const AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());

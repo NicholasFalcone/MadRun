@@ -8,6 +8,7 @@ class AMadRunPawn;
 class AMadRunProjectile;
 class USceneComponent;
 class UStaticMeshComponent;
+class UMadRunWeaponEquipment;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTurretFired);
 
@@ -29,6 +30,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Turret")
 	AActor* GetTarget() const { return Target.Get(); }
+
+	UFUNCTION(BlueprintPure, Category="Equipment")
+	UMadRunWeaponEquipment* GetEquipment() const;
+
+	bool ApplyEquipmentVisual(const UMadRunWeaponEquipment* Equipment);
 
 private:
 	AActor* FindTarget() const;

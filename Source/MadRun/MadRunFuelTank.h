@@ -8,6 +8,7 @@
 class UBoxComponent;
 class UStaticMeshComponent;
 class UMadRunPartHealthDisplay;
+class UMadRunFuelTankEquipment;
 
 UCLASS(Blueprintable)
 class AMadRunFuelTank : public AActor, public IMadRunPartHealth
@@ -31,6 +32,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Fuel")
 	float GetCapacity() const { return Capacity; }
+
+	UFUNCTION(BlueprintPure, Category="Equipment")
+	UMadRunFuelTankEquipment* GetEquipment() const;
+
+	bool ApplyEquipmentVisual(const UMadRunFuelTankEquipment* Equipment);
 
 	UFUNCTION(BlueprintCallable, Category="Fuel")
 	void AddFuel(float Amount);

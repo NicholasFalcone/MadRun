@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
+#include "MadRunEquipment.h"
 #include "MadRunPawn.generated.h"
 
 class UCameraComponent;
@@ -51,6 +52,30 @@ class AMadRunPawn : public AWheeledVehiclePawn
 	TObjectPtr<UChildActorComponent> FuelTank;
 
 	bool bEngineTorqueDisabledForFuel = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Equipment|Initial", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunEngineEquipment> InitialEngineEquipment;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Equipment|Initial", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunWeaponEquipment> InitialWeaponEquipment;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Equipment|Initial", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunTiresEquipment> InitialTiresEquipment;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Equipment|Initial", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunFuelTankEquipment> InitialFuelTankEquipment;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Vehicle|Equipment", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunEngineEquipment> EngineEquipment;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Vehicle|Equipment", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunWeaponEquipment> WeaponEquipment;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Vehicle|Equipment", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunTiresEquipment> TiresEquipment;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Vehicle|Equipment", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunFuelTankEquipment> FuelTankEquipment;
 
 protected:
 
@@ -219,6 +244,27 @@ public:
 	/** Returns a runtime wheel by its Wheel Setups index, or null if unavailable. */
 	UFUNCTION(BlueprintCallable, Category="Vehicle|Wheels")
 	UMadRunWheelBase* GetWheelByIndex(int32 WheelIndex) const;
+
+	UFUNCTION(BlueprintPure, Category="Vehicle|Equipment")
+	UMadRunEngineEquipment* GetEngineEquipment() const { return EngineEquipment; }
+
+	UFUNCTION(BlueprintPure, Category="Vehicle|Equipment")
+	UMadRunWeaponEquipment* GetWeaponEquipment() const { return WeaponEquipment; }
+
+	UFUNCTION(BlueprintPure, Category="Vehicle|Equipment")
+	UMadRunTiresEquipment* GetTiresEquipment() const { return TiresEquipment; }
+
+	UFUNCTION(BlueprintPure, Category="Vehicle|Equipment")
+	UMadRunFuelTankEquipment* GetFuelTankEquipment() const { return FuelTankEquipment; }
+
+	/** Equips an asset in its corresponding slot and applies its visual, if any. */
+	UFUNCTION(BlueprintCallable, Category="Vehicle|Equipment")
+	bool Equip(UMadRunEquipment* Equipment);
+
+protected:
+	virtual bool ApplyTiresMesh(UStaticMesh* TireMesh);
+
+public:
 
 	UFUNCTION(BlueprintPure, Category="Vehicle|Turret")
 	virtual AMadRunTurret* GetTurret() const { return nullptr; }

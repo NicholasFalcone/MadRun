@@ -65,7 +65,7 @@ Health. OffRoad usa gli indici 0/1 anteriori sinistra/destra e 2/3 posteriori
 sinistra/destra.
 
 Ogni ruota e il serbatoio hanno un indicatore di salute nello spazio di
-gioco con uno slider non interattivo. Compare quando la salute cambia per danno, riparazione o `Set Health`
+gioco con una barra di progresso non interattiva. Compare quando la salute cambia per danno, riparazione o `Set Health`
 e rimane visibile per tre secondi dall'ultima variazione; una chiamata che
 non modifica la salute non riattiva il timer. Mostra la salute della parte,
 non la quantita di carburante. Il componente `Health Display` permette di
@@ -87,6 +87,51 @@ il proprietario e i suoi Actor collegati. I proiettili personalizzati devono usa
 `MadRunProjectile`, bloccare WorldDynamic e applicare danno all'Actor colpito.
 La carrozzeria puo schermare le hitbox: verificarne posizione e dimensioni
 nel Blueprint del veicolo.
+
+## Equipaggiamento del veicolo
+
+Ogni equipaggiamento e un Data Asset distinto: creare un asset di tipo
+`MadRunEngineEquipment`, `MadRunWeaponEquipment`, `MadRunTiresEquipment` o
+`MadRunFuelTankEquipment`. Le classi possono essere estese in Blueprint
+per aggiungere dati specifici. Nei valori predefiniti del Blueprint del
+veicolo assegnare gli asset ai quattro slot `Initial Engine Equipment`,
+`Initial Weapon Equipment`, `Initial Tires Equipment` e
+`Initial Fuel Tank Equipment`.
+
+Gli asset configurati vengono equipaggiati all'avvio. Gli slot lasciati vuoti
+non rimuovono le parti o la grafica preesistenti. `Equip` seleziona direttamente
+un asset, senza livelli o ordine obbligatorio, e restituisce se l'operazione e
+riuscita. Arma, gomme e serbatoio
+richiedono una static mesh: la mesh viene applicata rispettivamente alla canna
+della torretta, a tutte le gomme OffRoad o alla mesh del serbatoio.
+`Mesh Transform` dell'arma controlla posizione, rotazione e scala rispetto alla
+torretta; le gomme mantengono le trasformazioni dei componenti del veicolo.
+Il motore non ha grafica separata. I getter sul veicolo, sulla torretta, sulle
+ruote e sul serbatoio restituiscono l'asset selezionato, oppure `None`.
+
+La selezione modifica solo l'aspetto e i riferimenti agli asset: non applica
+ancora statistiche o comportamenti specifici. Scavenging Points e salvataggio
+non sono implementati; un nuovo veicolo riparte con gli slot iniziali del Blueprint.
+
+## Scavenger Point
+
+Posizionare nella mappa un Actor `MadRunScavengerPoint` o un suo Blueprint.
+Il componente `Area` definisce il raggio di interazione (400 cm predefiniti),
+misurato dal centro del veicolo; `Marker` e una mesh provvisoria configurabile.
+In `Possible Equipment`, assegnare i Data Asset e un peso non negativo a
+ciascuna voce. La probabilita e il peso diviso per la somma dei pesi:
+ad esempio 3 e 7 corrispondono al 30% e al 70%. Il peso zero esclude una
+voce. Almeno una voce con peso positivo e asset valido e necessaria.
+
+Entrando nell'area appare l'indicazione per cercare con `E`. Il punto estrae
+un pezzo una sola volta e mostra nome e descrizione: `Y` lo equipaggia, `N`
+chiude la proposta. Rifiutando o uscendo dall'area il pezzo resta disponibile;
+il punto scompare solo dopo un equipaggiamento riuscito. In caso di errore
+controllare la configurazione dell'asset e il log. I tasti sono configurabili
+nel Player Controller; `Start Scavenging`, `Accept Scavenged Equipment` e
+`Cancel Scavenging` possono essere collegati a controlli aggiuntivi.
+Non sono previsti controlli touch predefiniti ne sincronizzazione multiplayer
+o salvataggio dei punti.
 
 ## Torretta
 

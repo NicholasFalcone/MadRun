@@ -1,4 +1,5 @@
 #include "MadRunFuelTank.h"
+#include "MadRunPawn.h"
 #include "MadRun.h"
 #include "MadRunCollision.h"
 #include "MadRunPartHealthDisplay.h"
@@ -55,6 +56,22 @@ float AMadRunFuelTank::TakeDamage(float DamageAmount, const FDamageEvent& Damage
 
 int32 AMadRunFuelTank::GetHealth_Implementation() const { return PartHealth.Health; }
 int32 AMadRunFuelTank::GetMaxHealth_Implementation() const { return FMath::Max(PartHealth.MaxHealth, 1); }
+
+UMadRunFuelTankEquipment* AMadRunFuelTank::GetEquipment() const
+{
+	const AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());
+	return IsValid(Vehicle) && Vehicle->GetFuelTank() == this ? Vehicle->GetFuelTankEquipment() : nullptr;
+}
+
+bool AMadRunFuelTank::ApplyEquipmentVisual(const UMadRunFuelTankEquipment* Equipment)
+{
+	if (!IsValid(Equipment) || !IsValid(Equipment->Mesh) || !IsValid(TankMesh))
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel tank '%s' requires a valid equipment mesh."), *GetNameSafe(this));
+		return false;
+	}
+	return TankMesh->GetStaticMesh() == Equipment->Mesh || TankMesh->SetStaticMesh(Equipment->Mesh);
+}
 
 void AMadRunFuelTank::SetHealth_Implementation(int32 NewHealth)
 {

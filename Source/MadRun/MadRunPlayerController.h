@@ -11,6 +11,9 @@ class UInputMappingContext;
 class AMadRunPawn;
 class UMadRunUI;
 class UInputAction;
+class AMadRunScavengerPoint;
+class UMadRunEquipment;
+class UMadRunScavengerWidget;
 
 /**
  *  Vehicle Player Controller class
@@ -39,6 +42,35 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> FireMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, Category="Input|Scavenging")
+	FKey ScavengeKey = EKeys::E;
+
+	UPROPERTY(EditDefaultsOnly, Category="Input|Scavenging")
+	FKey AcceptEquipmentKey = EKeys::Y;
+
+	UPROPERTY(EditDefaultsOnly, Category="Input|Scavenging")
+	FKey RejectEquipmentKey = EKeys::N;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> ScavengeAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> AcceptEquipmentAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> RejectEquipmentAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> ScavengingMappingContext;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMadRunScavengerWidget> ScavengerWidget;
+
+	TWeakObjectPtr<AMadRunScavengerPoint> PendingScavengerPoint;
+	TWeakObjectPtr<UMadRunEquipment> PendingEquipment;
+	bool bScavengerPromptOpen = false;
+	bool bScavengerHintVisible = false;
 
 	/** Mobile controls widget to spawn */
 	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
@@ -91,6 +123,15 @@ public:
 	/** Update vehicle UI on tick */
 	virtual void Tick(float Delta) override;
 
+	UFUNCTION(BlueprintCallable, Category="Scavenging")
+	void StartScavenging();
+
+	UFUNCTION(BlueprintCallable, Category="Scavenging")
+	void AcceptScavengedEquipment();
+
+	UFUNCTION(BlueprintCallable, Category="Scavenging")
+	void CancelScavenging();
+
 protected:
 
 	/** Pawn setup */
@@ -99,6 +140,7 @@ protected:
 
 	void StartTurretFire();
 	void StopTurretFire();
+	AMadRunScavengerPoint* FindNearbyScavengerPoint() const;
 
 	/** Handles pawn destruction and respawning */
 	UFUNCTION()

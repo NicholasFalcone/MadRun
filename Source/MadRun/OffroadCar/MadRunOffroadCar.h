@@ -58,4 +58,7 @@ public:
 	virtual AMadRunTurret* GetTurret() const override;
 	virtual float TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 		AController* EventInstigator, AActor* DamageCauser) override;
+
+protected:
+	virtual bool ApplyTiresMesh(UStaticMesh* TireMesh) override;
 };

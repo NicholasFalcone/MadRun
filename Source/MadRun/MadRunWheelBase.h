@@ -7,6 +7,8 @@
 #include "MadRunPartHealth.h"
 #include "MadRunWheelBase.generated.h"
 
+class UMadRunTiresEquipment;
+
 UCLASS()
 class UMadRunWheelBase : public UChaosVehicleWheel, public IMadRunPartHealth
 {
@@ -25,6 +27,9 @@ public:
 	virtual void SetHealth_Implementation(int32 NewHealth) override;
 	virtual void DoRepair_Implementation() override;
 	virtual void TakeDamage_Implementation(int32 DamageAmount) override;
+
+	UFUNCTION(BlueprintPure, Category="Equipment")
+	UMadRunTiresEquipment* GetEquipment() const;
 
 	UPROPERTY(BlueprintAssignable, Category="Health")
 	FOnOutofWork OnOutofWork;
