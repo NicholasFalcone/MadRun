@@ -1,0 +1,93 @@
+#include "MadRunFuelTank.h"
+#include "MadRun.h"
+#include "Components/BoxComponent.h"
+
+AMadRunFuelTank::AMadRunFuelTank()
+{
+	PrimaryActorTick.bCanEverTick = false;
+	Hitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("Hitbox"));
+	SetRootComponent(Hitbox);
+	Hitbox->InitBoxExtent(FVector(20.0f));
+	Hitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Hitbox->SetCollisionObjectType(ECC_WorldDynamic);
+	Hitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Hitbox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+}
+
+void AMadRunFuelTank::BeginPlay()
+{
+	Super::BeginPlay();
+	PartHealth.Initialize();
+	Fuel = FMath::Max(Capacity, 0.0f);
+}
+
+float AMadRunFuelTank::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
+	AController* EventInstigator, AActor* DamageCauser)
+{
+	if (!FMath::IsFinite(DamageAmount) || DamageAmount < 0.0f)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel tank damage must be finite and non-negative."));
+		return 0.0f;
+	}
+	const float AppliedDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if (AppliedDamage > 0.0f)
+	{
+		IMadRunPartHealth::Execute_TakeDamage(this, FMath::CeilToInt(FMath::Min(AppliedDamage, static_cast<float>(GetMaxHealth_Implementation()))));
+	}
+	return AppliedDamage;
+}
+
+int32 AMadRunFuelTank::GetHealth_Implementation() const { return PartHealth.Health; }
+int32 AMadRunFuelTank::GetMaxHealth_Implementation() const { return FMath::Max(PartHealth.MaxHealth, 1); }
+
+void AMadRunFuelTank::SetHealth_Implementation(int32 NewHealth)
+{
+	const int32 OldHealth = PartHealth.Health;
+	PartHealth.Set(NewHealth);
+	if (OldHealth > 0 && PartHealth.Health == 0)
+	{
+		OnOutofWork.Broadcast();
+	}
+	else if (OldHealth == 0 && PartHealth.Health > 0)
+	{
+		OnRepaired.Broadcast();
+	}
+}
+
+void AMadRunFuelTank::TakeDamage_Implementation(int32 DamageAmount)
+{
+	if (DamageAmount < 0)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel tank damage cannot be negative."));
+		return;
+	}
+	SetHealth_Implementation(PartHealth.Health - FMath::Min(DamageAmount, PartHealth.Health));
+}
+
+void AMadRunFuelTank::DoRepair_Implementation()
+{
+	SetHealth_Implementation(GetMaxHealth_Implementation());
+}
+
+void AMadRunFuelTank::AddFuel(float Amount)
+{
+	if (!FMath::IsFinite(Amount) || Amount < 0.0f)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel amount must be finite and non-negative."));
+		return;
+	}
+	Fuel = FMath::Clamp(Fuel + Amount, 0.0f, FMath::Max(Capacity, 0.0f));
+}
+
+void AMadRunFuelTank::ConsumeFuel(float DeltaSeconds, float Throttle)
+{
+	if (!FMath::IsFinite(DeltaSeconds) || !FMath::IsFinite(Throttle) || DeltaSeconds < 0.0f)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel consumption requires a non-negative finite delta and finite throttle."));
+		return;
+	}
+	const float DamageFraction = 1.0f - static_cast<float>(PartHealth.Health) / GetMaxHealth_Implementation();
+	const float Rate = FMath::Max(FullThrottleConsumptionPerSecond, 0.0f) * FMath::Clamp(Throttle, 0.0f, 1.0f)
+		+ FMath::Max(MaxLeakPerSecond, 0.0f) * FMath::Clamp(DamageFraction, 0.0f, 1.0f);
+	Fuel = FMath::Max(0.0f, Fuel - Rate * DeltaSeconds);
+}
