@@ -8,6 +8,7 @@ class UProjectileMovementComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnProjectileHit);
 UCLASS(Blueprintable)
 class AMadRunProjectile : public AActor
 {
@@ -33,4 +34,11 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Damage", meta=(AllowPrivateAccess="true", ClampMin="0.0"))
 	float Damage = 5.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Effects", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UParticleSystem> HitEffect;
+
+public:
+	UPROPERTY(BlueprintAssignable, Category="Events")
+	FOnProjectileHit OnProjectileHit;
 };

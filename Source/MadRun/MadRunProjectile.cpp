@@ -58,6 +58,11 @@ void AMadRunProjectile::HandleHit(UPrimitiveComponent* HitComponent, AActor* Oth
 	{
 		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, GetVelocity().GetSafeNormal(),
 			Hit, GetInstigatorController(), this, nullptr);
+		
+		if(HitEffect != nullptr)
+			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+
+		OnProjectileHit.Broadcast();
 	}
 	Destroy();
 }

@@ -60,6 +60,16 @@ ottenere la ruota dalla hitbox con `Get Wheel`
 o dal veicolo con `Get Wheel By Index` e chiamare `Do Repair` dell'interfaccia
 Health. OffRoad usa gli indici 0/1 anteriori sinistra/destra e 2/3 posteriori
 sinistra/destra.
+
+Ogni ruota e il serbatoio hanno un indicatore di salute nello spazio di
+gioco con uno slider non interattivo. Compare quando la salute cambia per danno, riparazione o `Set Health`
+e rimane visibile per tre secondi dall'ultima variazione; una chiamata che
+non modifica la salute non riattiva il timer. Mostra la salute della parte,
+non la quantita di carburante. Il componente `Health Display` permette di
+configurare altezza sopra il centro della parte, dimensione e durata.
+L'altezza resta verticale nel mondo anche se ruota la parte. L'indicatore e orientato verso
+la prima camera locale e puo essere coperto dalla geometria della scena.
+
 Quando una ruota raggiunge zero salute, trazione, sterzo e frenata vengono
 disabilitati; sospensione e mesh rimangono presenti. La riparazione ripristina
 le impostazioni della ruota e del differenziale. Durante la disattivazione
