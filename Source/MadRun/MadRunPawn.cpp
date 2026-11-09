@@ -207,7 +207,7 @@ bool AMadRunPawn::Equip(UMadRunEquipment* Equipment)
 	if (UMadRunWeaponEquipment* Weapon = Cast<UMadRunWeaponEquipment>(Equipment))
 	{
 		AMadRunTurret* Turret = GetTurret();
-		if (!IsValid(Turret) || !Turret->ApplyEquipmentVisual(Weapon))
+		if (!IsValid(Turret) || !Turret->ApplyEquipment(Weapon))
 		{
 			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot apply weapon equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Weapon));
 			return false;

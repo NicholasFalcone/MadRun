@@ -109,9 +109,9 @@ torretta; le gomme mantengono le trasformazioni dei componenti del veicolo.
 Il motore non ha grafica separata. I getter sul veicolo, sulla torretta, sulle
 ruote e sul serbatoio restituiscono l'asset selezionato, oppure `None`.
 
-La selezione modifica solo l'aspetto e i riferimenti agli asset: non applica
-ancora statistiche o comportamenti specifici. Scavenging Points e salvataggio
-non sono implementati; un nuovo veicolo riparte con gli slot iniziali del Blueprint.
+L'equipaggiamento arma configura anche le statistiche della torretta descritte
+sotto; gli altri equipaggiamenti non applicano ancora statistiche specifiche.
+Il salvataggio non e implementato; un nuovo veicolo riparte con gli slot iniziali del Blueprint.
 
 ## Scavenger Point
 
@@ -136,7 +136,17 @@ o salvataggio dei punti.
 ## Torretta
 
 Il veicolo OffRoad ha una torretta `Roof Turret` sul tetto. Tenendo premuto
-il tasto sinistro del mouse spara proiettili ogni 0,2 secondi. Mira al
+il tasto sinistro del mouse spara proiettili. Il Data Asset dell'arma definisce
+`Fire Interval` (secondi tra colpi), `Damage`, `Magazine Size` e `Reload Time`
+(secondi). Il caricatore parte pieno, si ricarica automaticamente quando e
+vuoto e le munizioni di riserva sono infinite. Se si continua a tenere premuto,
+il fuoco riprende dopo la ricarica e l'intervallo tra colpi; rilasciando il tasto
+la ricarica continua senza sparare. Cambiare arma interrompe la ricarica e
+riempie il nuovo caricatore, senza annullare il tempo di attesa del colpo precedente.
+Senza un Data Asset arma si usano i valori predefiniti della torretta:
+0,2 secondi tra colpi, 5 danni, 30 colpi e 2 secondi di ricarica.
+La torretta espone `Get Ammo In Magazine`, `Get Magazine Size` e `Is Reloading`.
+Mira al
 pezzo funzionante piu vicino di un altro veicolo MadRun entro 100 metri,
 se il percorso del proiettile verso il centro della sua hitbox non e bloccato.
 La torretta considera il serbatoio e le hitbox delle ruote, oltre agli Actor

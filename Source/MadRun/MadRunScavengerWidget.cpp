@@ -29,7 +29,7 @@ bool UMadRunScavengerWidget::Initialize()
 	PanelSlot->SetHorizontalAlignment(HAlign_Center);
 	PanelSlot->SetVerticalAlignment(VAlign_Center);
 	Message = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Message"));
-	Message->SetAutoWrapText(true);
+	Message->SetWrapTextAt(500.0f);
 	Panel->AddChild(Message);
 	SetVisibility(ESlateVisibility::Collapsed);
 	return true;

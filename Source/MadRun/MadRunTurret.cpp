@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMadRunTurret::AMadRunTurret()
@@ -30,17 +31,39 @@ AMadRunTurret::AMadRunTurret()
 	ProjectileClass = AMadRunProjectile::StaticClass();
 }
 
+void AMadRunTurret::BeginPlay()
+{
+	if (!FMath::IsFinite(FireInterval) || FireInterval < 0.01f || !FMath::IsFinite(Damage) || Damage < 0.0f
+		|| MagazineSize < 1 || !FMath::IsFinite(ReloadTime) || ReloadTime < 0.0f)
+	{
+		UE_LOG(LogMadRun, Error, TEXT("Turret '%s' has invalid default weapon statistics."), *GetNameSafe(this));
+	}
+	else
+	{
+		AmmoInMagazine = MagazineSize;
+	}
+	Super::BeginPlay();
+}
+
 UMadRunWeaponEquipment* AMadRunTurret::GetEquipment() const
 {
 	const AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());
 	return IsValid(Vehicle) && Vehicle->GetTurret() == this ? Vehicle->GetWeaponEquipment() : nullptr;
 }
 
-bool AMadRunTurret::ApplyEquipmentVisual(const UMadRunWeaponEquipment* Equipment)
+bool AMadRunTurret::ApplyEquipment(const UMadRunWeaponEquipment* Equipment)
 {
 	if (!IsValid(Equipment) || !IsValid(Equipment->Mesh) || !IsValid(Barrel))
 	{
 		UE_LOG(LogMadRun, Warning, TEXT("Turret '%s' requires a valid equipment mesh."), *GetNameSafe(this));
+		return false;
+	}
+	if (!FMath::IsFinite(Equipment->FireInterval) || Equipment->FireInterval < 0.01f
+		|| !FMath::IsFinite(Equipment->Damage) || Equipment->Damage < 0.0f
+		|| Equipment->MagazineSize < 1 || !FMath::IsFinite(Equipment->ReloadTime) || Equipment->ReloadTime < 0.0f)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Turret '%s' cannot equip weapon '%s': invalid weapon statistics."),
+			*GetNameSafe(this), *GetNameSafe(Equipment));
 		return false;
 	}
 	if (Barrel->GetStaticMesh() != Equipment->Mesh && !Barrel->SetStaticMesh(Equipment->Mesh))
@@ -48,6 +71,12 @@ bool AMadRunTurret::ApplyEquipmentVisual(const UMadRunWeaponEquipment* Equipment
 		return false;
 	}
 	Barrel->SetRelativeTransform(Equipment->MeshTransform);
+	FireInterval = Equipment->FireInterval;
+	Damage = Equipment->Damage;
+	MagazineSize = Equipment->MagazineSize;
+	ReloadTime = Equipment->ReloadTime;
+	AmmoInMagazine = MagazineSize;
+	bReloading = false;
 	return true;
 }
 
@@ -128,10 +157,25 @@ void AMadRunTurret::Tick(float DeltaSeconds)
 	{
 		SetActorRotation(Parent->GetActorRotation());
 	}
-	if (bFiring && GetWorld()->GetTimeSeconds() >= NextFireTime)
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (bReloading && Now >= ReloadEndTime)
 	{
-		Fire();
-		NextFireTime = GetWorld()->GetTimeSeconds() + FMath::Max(0.01f, FireInterval);
+		AmmoInMagazine = MagazineSize;
+		bReloading = false;
+	}
+	if (bFiring && !bReloading && AmmoInMagazine > 0 && Now >= NextFireTime)
+	{
+		NextFireTime = Now + FireInterval;
+		if (Fire())
+		{
+			--AmmoInMagazine;
+			if (AmmoInMagazine == 0)
+			{
+				bReloading = true;
+				ReloadEndTime = Now + ReloadTime;
+			}
+			OnTurretFired.Broadcast();
+		}
 	}
 }
 
@@ -151,13 +195,13 @@ void AMadRunTurret::EndPlay(EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AMadRunTurret::Fire()
+bool AMadRunTurret::Fire()
 {
 	AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());
 	if (!IsValid(Vehicle) || !ProjectileClass)
 	{
 		UE_LOG(LogMadRun, Error, TEXT("Turret '%s' cannot fire without a vehicle and projectile class."), *GetNameSafe(this));
-		return;
+		return false;
 	}
 	FActorSpawnParameters Params;
 	Params.Owner = Vehicle;
@@ -173,9 +217,19 @@ void AMadRunTurret::Fire()
 	FHitResult Hit;
 	const FVector SpawnLocation = GetWorld()->LineTraceSingleByChannel(Hit, Origin, Muzzle, MadRunProjectileChannel, TraceParams)
 		? Origin : Muzzle;
-	if (!GetWorld()->SpawnActor<AMadRunProjectile>(ProjectileClass, SpawnLocation, GetActorRotation(), Params))
+	const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+	Params.bDeferConstruction = true;
+	AMadRunProjectile* Projectile = GetWorld()->SpawnActor<AMadRunProjectile>(ProjectileClass, SpawnTransform, Params);
+	if (!Projectile)
 	{
 		UE_LOG(LogMadRun, Error, TEXT("Turret '%s' failed to spawn a projectile."), *GetNameSafe(this));
+		return false;
 	}
-	OnTurretFired.Broadcast();
+	if (!Projectile->SetDamage(Damage))
+	{
+		Projectile->Destroy();
+		return false;
+	}
+	UGameplayStatics::FinishSpawningActor(Projectile, SpawnTransform);
+	return true;
 }

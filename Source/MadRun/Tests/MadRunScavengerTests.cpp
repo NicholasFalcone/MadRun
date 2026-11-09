@@ -103,6 +103,11 @@ bool FMadRunScavengerTest::RunTest(const FString& Parameters)
 			UTextBlock* Message = Cast<UTextBlock>(Widget->GetWidgetFromName(TEXT("Message")));
 			if (TestNotNull(TEXT("UI message"), Message))
 			{
+				Widget->ShowHint(FText::FromString(TEXT("E")));
+				TestTrue(TEXT("Hint is visible"), Widget->GetVisibility() == ESlateVisibility::HitTestInvisible);
+				TestTrue(TEXT("Hint displays the interaction key"), Message->GetText().ToString().Contains(TEXT("E")));
+				TestFalse(TEXT("Text wrapping does not depend on the panel's current width"), Message->GetAutoWrapText());
+				TestEqual(TEXT("Long descriptions use a fixed wrap width"), Message->GetWrapTextAt(), 500.0f);
 				Second->Name = FText::FromString(TEXT("Test engine"));
 				Widget->ShowOffer(Second, FText::FromString(TEXT("Y")), FText::FromString(TEXT("N")));
 				TestTrue(TEXT("Offer shows item and keys"), Message->GetText().ToString().Contains(TEXT("Test engine"))

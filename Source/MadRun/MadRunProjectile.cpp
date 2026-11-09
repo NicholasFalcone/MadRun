@@ -1,5 +1,6 @@
 #include "MadRunProjectile.h"
 #include "MadRunCollision.h"
+#include "MadRun.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -34,6 +35,17 @@ AMadRunProjectile::AMadRunProjectile()
 	ProjectileMovement->InitialSpeed = 10000.0f;
 	ProjectileMovement->MaxSpeed = 10000.0f;
 	ProjectileMovement->ProjectileGravityScale = 0.0f;
+}
+
+bool AMadRunProjectile::SetDamage(float NewDamage)
+{
+	if (!FMath::IsFinite(NewDamage) || NewDamage < 0.0f)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Projectile '%s' requires finite, non-negative damage."), *GetNameSafe(this));
+		return false;
+	}
+	Damage = NewDamage;
+	return true;
 }
 
 void AMadRunProjectile::BeginPlay()

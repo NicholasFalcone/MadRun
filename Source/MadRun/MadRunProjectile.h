@@ -18,6 +18,12 @@ public:
 	AMadRunProjectile();
 	virtual void BeginPlay() override;
 
+	/** Overrides damage for this projectile before it begins play. */
+	bool SetDamage(float NewDamage);
+
+	UFUNCTION(BlueprintPure, Category="Damage")
+	float GetDamage() const { return Damage; }
+
 private:
 	UFUNCTION()
 	void HandleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
