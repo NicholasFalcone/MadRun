@@ -39,6 +39,9 @@ public:
 	/** Updates or clears the status of the controlled vehicle. */
 	void UpdateVehicleStatus(const AMadRunPawn* Vehicle);
 
+	/** Updates the race progress message. */
+	void UpdateRaceStatus(const FText& Status);
+
 protected:
 
 	/** Implemented in Blueprint to display the new speed */
@@ -55,6 +58,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> TankHealthText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RaceStatusText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> WheelHealthBox;

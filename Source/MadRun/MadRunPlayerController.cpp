@@ -277,6 +277,14 @@ void AMadRunPlayerController::CancelScavenging()
 	}
 }
 
+void AMadRunPlayerController::UpdateRaceStatus(const FText& Status) const
+{
+	if (IsLocalPlayerController() && IsValid(VehicleUI))
+	{
+		VehicleUI->UpdateRaceStatus(Status);
+	}
+}
+
 void AMadRunPlayerController::Tick(float Delta)
 {
 	Super::Tick(Delta);

@@ -132,6 +132,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Scavenging")
 	void CancelScavenging();
 
+	void UpdateRaceStatus(const FText& Status) const;
+
 protected:
 
 	/** Pawn setup */

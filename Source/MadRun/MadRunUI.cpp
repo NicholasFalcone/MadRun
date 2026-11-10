@@ -35,6 +35,15 @@ void UMadRunUI::NativeOnInitialized()
 	OriginalSlot->SetVerticalAlignment(VAlign_Bottom);
 	OriginalSlot->SetPadding(FMargin(24.0f));
 
+	RaceStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RaceStatusText"));
+	RaceStatusText->SetText(LOCTEXT("RaceWaiting", "Attraversa il via per iniziare"));
+	RaceStatusText->SetJustification(ETextJustify::Center);
+	RaceStatusText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	UOverlaySlot* RaceStatusSlot = Overlay->AddChildToOverlay(RaceStatusText);
+	RaceStatusSlot->SetHorizontalAlignment(HAlign_Center);
+	RaceStatusSlot->SetVerticalAlignment(VAlign_Top);
+	RaceStatusSlot->SetPadding(FMargin(24.0f, 32.0f));
+
 	UBorder* FuelBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("FuelBackground"));
 	FuelBackground->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.7f));
 	FuelBackground->SetPadding(FMargin(12.0f, 6.0f));
@@ -53,6 +62,16 @@ void UMadRunUI::NativeOnInitialized()
 	StatusBox->AddChildToVerticalBox(WheelHealthBox)->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
 	FuelBackground->SetVisibility(ESlateVisibility::HitTestInvisible);
 	UpdateVehicleStatus(nullptr);
+}
+
+void UMadRunUI::UpdateRaceStatus(const FText& Status)
+{
+	if (!RaceStatusText)
+	{
+		UE_LOG(LogMadRun, Error, TEXT("Vehicle UI '%s' has no race status widget."), *GetNameSafe(this));
+		return;
+	}
+	RaceStatusText->SetText(Status);
 }
 
 void UMadRunUI::UpdateVehicleStatus(const AMadRunPawn* Vehicle)

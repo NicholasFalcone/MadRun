@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/GameModeBase.h"
+#include "MadRunGameMode.h"
 #include "OffroadGameMode.generated.h"
 
 /**
  *  Simple GameMode for an offroad vehicle game
  */
 UCLASS(abstract)
-class AOffroadGameMode : public AGameModeBase
+class AOffroadGameMode : public AMadRunGameMode
 {
 	GENERATED_BODY()
 	
