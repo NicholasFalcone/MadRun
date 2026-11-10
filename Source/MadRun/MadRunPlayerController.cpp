@@ -7,6 +7,7 @@
 #include "MadRunScavengerPoint.h"
 #include "MadRunScavengerWidget.h"
 #include "MadRunEquipment.h"
+#include "MadRunGameInstance.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
@@ -59,6 +60,10 @@ void AMadRunPlayerController::BeginPlay()
 		if (VehicleUI)
 		{
 			VehicleUI->AddToViewport();
+			if (!PendingRaceStatus.IsEmpty())
+			{
+				VehicleUI->UpdateRaceStatus(PendingRaceStatus);
+			}
 
 		} else {
 
@@ -191,6 +196,8 @@ void AMadRunPlayerController::OnUnPossess()
 {
 	StopTurretFire();
 	CancelScavenging();
+	ServerScavengerPoint.Reset();
+	ServerScavengerEquipment.Reset();
 	Super::OnUnPossess();
 }
 
@@ -228,12 +235,47 @@ void AMadRunPlayerController::StartScavenging()
 	if (AMadRunScavengerPoint* Point = FindNearbyScavengerPoint())
 	{
 		PendingScavengerPoint = Point;
-		PendingEquipment = Point->GetOrSelectEquipment();
 		bScavengerPromptOpen = true;
 		bScavengerHintVisible = false;
-		if (UMadRunEquipment* Offer = PendingEquipment.Get())
+		bWaitingForScavengerReply = true;
+		++ScavengerRequestId;
+		ServerRequestScavenge(Point, ScavengerRequestId);
+	}
+}
+
+void AMadRunPlayerController::ServerRequestScavenge_Implementation(AMadRunScavengerPoint* Point, uint32 RequestId)
+{
+	ServerScavengerPoint.Reset();
+	ServerScavengerEquipment.Reset();
+	ServerScavengerRequestId = RequestId;
+	AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetPawn());
+	if (!IsValid(Point) || Point->IsActorBeingDestroyed() || !Point->IsVehicleInRange(Vehicle))
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Scavenging request rejected: point unavailable or out of range."));
+		ClientScavengeOffer(nullptr, nullptr, RequestId);
+		return;
+	}
+	UMadRunEquipment* Offer = Point->GetOrSelectEquipment();
+	ServerScavengerPoint = Point;
+	ServerScavengerEquipment = Offer;
+	ClientScavengeOffer(Point, Offer, RequestId);
+}
+
+void AMadRunPlayerController::ClientScavengeOffer_Implementation(AMadRunScavengerPoint* Point,
+	UMadRunEquipment* Equipment, uint32 RequestId)
+{
+	if (!bScavengerPromptOpen || RequestId != ScavengerRequestId)
+	{
+		return;
+	}
+	bWaitingForScavengerReply = false;
+	PendingScavengerPoint = Point;
+	PendingEquipment = Equipment;
+	if (IsValid(ScavengerWidget))
+	{
+		if (IsValid(Point) && IsValid(Equipment))
 		{
-			ScavengerWidget->ShowOffer(Offer, AcceptEquipmentKey.GetDisplayName(), RejectEquipmentKey.GetDisplayName());
+			ScavengerWidget->ShowOffer(Equipment, AcceptEquipmentKey.GetDisplayName(), RejectEquipmentKey.GetDisplayName());
 		}
 		else
 		{
@@ -242,9 +284,56 @@ void AMadRunPlayerController::StartScavenging()
 	}
 }
 
+void AMadRunPlayerController::ServerAcceptScavenge_Implementation(uint32 RequestId)
+{
+	if (RequestId != ServerScavengerRequestId)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Scavenging acceptance rejected: stale request."));
+		ClientScavengeResult(false, RequestId);
+		return;
+	}
+	AMadRunScavengerPoint* Point = ServerScavengerPoint.Get();
+	UMadRunEquipment* Equipment = ServerScavengerEquipment.Get();
+	const bool bSuccess = IsValid(Point) && IsValid(Equipment)
+		&& Point->TryEquip(Cast<AMadRunPawn>(GetPawn()), Equipment);
+	if (!bSuccess)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Scavenging acceptance rejected: offer is no longer available."));
+	}
+	ServerScavengerPoint.Reset();
+	ServerScavengerEquipment.Reset();
+	ClientScavengeResult(bSuccess, RequestId);
+}
+
+void AMadRunPlayerController::ServerCancelScavenge_Implementation(uint32 RequestId)
+{
+	if (RequestId == ServerScavengerRequestId)
+	{
+		ServerScavengerPoint.Reset();
+		ServerScavengerEquipment.Reset();
+	}
+}
+
+void AMadRunPlayerController::ClientScavengeResult_Implementation(bool bSuccess, uint32 RequestId)
+{
+	if (!bScavengerPromptOpen || RequestId != ScavengerRequestId)
+	{
+		return;
+	}
+	bWaitingForScavengerReply = false;
+	if (bSuccess)
+	{
+		CancelScavenging();
+	}
+	else if (IsValid(ScavengerWidget))
+	{
+		ScavengerWidget->ShowFailure(RejectEquipmentKey.GetDisplayName());
+	}
+}
+
 void AMadRunPlayerController::AcceptScavengedEquipment()
 {
-	if (!bScavengerPromptOpen)
+	if (!bScavengerPromptOpen || bWaitingForScavengerReply)
 	{
 		return;
 	}
@@ -255,20 +344,23 @@ void AMadRunPlayerController::AcceptScavengedEquipment()
 		CancelScavenging();
 		return;
 	}
-	if (Point->TryEquip(Vehicle, PendingEquipment.Get()))
+	if (!PendingEquipment.IsValid())
 	{
-		CancelScavenging();
+		return;
 	}
-	else if (IsValid(ScavengerWidget))
-	{
-		ScavengerWidget->ShowFailure(RejectEquipmentKey.GetDisplayName());
-	}
+	bWaitingForScavengerReply = true;
+	ServerAcceptScavenge(ScavengerRequestId);
 }
 
 void AMadRunPlayerController::CancelScavenging()
 {
+	if (bScavengerPromptOpen && IsLocalPlayerController())
+	{
+		ServerCancelScavenge(ScavengerRequestId);
+	}
 	bScavengerPromptOpen = false;
 	bScavengerHintVisible = false;
+	bWaitingForScavengerReply = false;
 	PendingScavengerPoint.Reset();
 	PendingEquipment.Reset();
 	if (IsValid(ScavengerWidget))
@@ -277,11 +369,52 @@ void AMadRunPlayerController::CancelScavenging()
 	}
 }
 
-void AMadRunPlayerController::UpdateRaceStatus(const FText& Status) const
+void AMadRunPlayerController::UpdateRaceStatus(const FText& Status)
 {
-	if (IsLocalPlayerController() && IsValid(VehicleUI))
+	if (HasAuthority())
+	{
+		ClientUpdateRaceStatus(Status);
+	}
+}
+
+void AMadRunPlayerController::ClientUpdateRaceStatus_Implementation(const FText& Status)
+{
+	PendingRaceStatus = Status;
+	if (IsValid(VehicleUI))
 	{
 		VehicleUI->UpdateRaceStatus(Status);
+	}
+}
+
+void AMadRunPlayerController::MadRunHost()
+{
+	if (UMadRunGameInstance* Instance = GetGameInstance<UMadRunGameInstance>())
+	{
+		Instance->HostRace();
+	}
+}
+
+void AMadRunPlayerController::MadRunFind()
+{
+	if (UMadRunGameInstance* Instance = GetGameInstance<UMadRunGameInstance>())
+	{
+		Instance->FindRaces();
+	}
+}
+
+void AMadRunPlayerController::MadRunJoin(int32 Index)
+{
+	if (UMadRunGameInstance* Instance = GetGameInstance<UMadRunGameInstance>())
+	{
+		Instance->JoinRace(Index);
+	}
+}
+
+void AMadRunPlayerController::MadRunLeave()
+{
+	if (UMadRunGameInstance* Instance = GetGameInstance<UMadRunGameInstance>())
+	{
+		Instance->LeaveRace();
 	}
 }
 
@@ -292,8 +425,9 @@ void AMadRunPlayerController::Tick(float Delta)
 	if (IsLocalPlayerController() && IsValid(ScavengerWidget))
 	{
 		AMadRunScavengerPoint* Point = PendingScavengerPoint.Get();
-		if (bScavengerPromptOpen && (!IsValid(Point) || Point->IsActorBeingDestroyed()
-			|| !Point->IsVehicleInRange(Cast<AMadRunPawn>(GetPawn()))))
+		if (bScavengerPromptOpen && (PendingScavengerPoint.IsStale()
+			|| (Point && (Point->IsActorBeingDestroyed()
+				|| !Point->IsVehicleInRange(Cast<AMadRunPawn>(GetPawn()))))))
 		{
 			CancelScavenging();
 		}
@@ -317,11 +451,12 @@ void AMadRunPlayerController::Tick(float Delta)
 
 	if (IsValid(VehicleUI))
 	{
-		if (IsValid(VehiclePawn) && !VehiclePawn->IsActorBeingDestroyed() && GetPawn() == VehiclePawn)
+		AMadRunPawn* ControlledVehicle = Cast<AMadRunPawn>(GetPawn());
+		if (IsValid(ControlledVehicle) && !ControlledVehicle->IsActorBeingDestroyed())
 		{
-			VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
-			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
-			VehicleUI->UpdateVehicleStatus(VehiclePawn);
+			VehicleUI->UpdateSpeed(ControlledVehicle->GetChaosVehicleMovement()->GetForwardSpeed());
+			VehicleUI->UpdateGear(ControlledVehicle->GetChaosVehicleMovement()->GetCurrentGear());
+			VehicleUI->UpdateVehicleStatus(ControlledVehicle);
 		}
 		else
 		{
@@ -350,7 +485,8 @@ void AMadRunPlayerController::OnPawnDestroyed(AActor* DestroyedPawn)
 	if (ActorList.Num() > 0)
 	{
 		// spawn a vehicle at the player start
-		const FTransform SpawnTransform = ActorList[0]->GetActorTransform();
+		const int32 StartIndex = FMath::RandRange(0, ActorList.Num() - 1);
+		const FTransform SpawnTransform = ActorList[StartIndex]->GetActorTransform();
 
 		if (AMadRunPawn* RespawnedVehicle = GetWorld()->SpawnActor<AMadRunPawn>(VehiclePawnClass, SpawnTransform))
 		{

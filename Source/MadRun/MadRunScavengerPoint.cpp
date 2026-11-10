@@ -5,10 +5,13 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Net/UnrealNetwork.h"
 
 AMadRunScavengerPoint::AMadRunScavengerPoint()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	bAlwaysRelevant = true;
 	Area = CreateDefaultSubobject<USphereComponent>(TEXT("Area"));
 	SetRootComponent(Area);
 	Area->InitSphereRadius(400.0f);
@@ -24,6 +27,17 @@ AMadRunScavengerPoint::AMadRunScavengerPoint()
 	}
 }
 
+void AMadRunScavengerPoint::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMadRunScavengerPoint, bConsumed);
+}
+
+void AMadRunScavengerPoint::OnRep_Consumed()
+{
+	Marker->SetVisibility(!bConsumed);
+}
+
 bool AMadRunScavengerPoint::IsVehicleInRange(const AMadRunPawn* Vehicle) const
 {
 	return IsValid(Vehicle) && !Vehicle->IsActorBeingDestroyed() && !bConsumed
@@ -33,6 +47,11 @@ bool AMadRunScavengerPoint::IsVehicleInRange(const AMadRunPawn* Vehicle) const
 
 UMadRunEquipment* AMadRunScavengerPoint::GetOrSelectEquipment()
 {
+	if (GetNetMode() == NM_Client || !HasAuthority())
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Scavenger offers must be selected by the server."));
+		return nullptr;
+	}
 	if (bConsumed)
 	{
 		return nullptr;
@@ -76,6 +95,11 @@ UMadRunEquipment* AMadRunScavengerPoint::GetOrSelectEquipment()
 
 bool AMadRunScavengerPoint::TryEquip(AMadRunPawn* Vehicle, const UMadRunEquipment* OfferedEquipment)
 {
+	if (GetNetMode() == NM_Client || !HasAuthority())
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Scavenger equipment must be accepted by the server."));
+		return false;
+	}
 	if (!IsVehicleInRange(Vehicle) || !IsValid(SelectedEquipment) || SelectedEquipment != OfferedEquipment)
 	{
 		UE_LOG(LogMadRun, Warning, TEXT("Scavenger point '%s' cannot equip an unavailable offer."), *GetNameSafe(this));
@@ -86,6 +110,7 @@ bool AMadRunScavengerPoint::TryEquip(AMadRunPawn* Vehicle, const UMadRunEquipmen
 		return false;
 	}
 	bConsumed = true;
-	Marker->SetVisibility(false);
+	OnRep_Consumed();
+	ForceNetUpdate();
 	return true;
 }

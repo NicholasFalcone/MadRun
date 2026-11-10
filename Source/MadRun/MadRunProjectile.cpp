@@ -1,6 +1,7 @@
 #include "MadRunProjectile.h"
 #include "MadRunCollision.h"
 #include "MadRun.h"
+#include "MadRunPawn.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -10,6 +11,8 @@
 AMadRunProjectile::AMadRunProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	SetReplicateMovement(true);
 	InitialLifeSpan = 10.0f;
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	SetRootComponent(Collision);
@@ -51,6 +54,10 @@ bool AMadRunProjectile::SetDamage(float NewDamage)
 void AMadRunProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+	if (!HasAuthority())
+	{
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 	if (AActor* Shooter = GetOwner())
 	{
 		Collision->IgnoreActorWhenMoving(Shooter, true);
@@ -66,13 +73,23 @@ void AMadRunProjectile::BeginPlay()
 void AMadRunProjectile::HandleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
 	if (IsValid(OtherActor) && OtherActor != this && Damage > 0.0f)
 	{
 		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, GetVelocity().GetSafeNormal(),
 			Hit, GetInstigatorController(), this, nullptr);
 		
-		if(HitEffect != nullptr)
+		if (AMadRunPawn* Shooter = Cast<AMadRunPawn>(GetOwner()))
+		{
+			Shooter->MulticastProjectileImpact(HitEffect, Hit.ImpactPoint, Hit.ImpactNormal);
+		}
+		else if (HitEffect && GetNetMode() != NM_DedicatedServer)
+		{
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+		}
 
 		OnProjectileHit.Broadcast();
 	}

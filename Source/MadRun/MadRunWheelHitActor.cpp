@@ -67,6 +67,11 @@ UMadRunWheelBase* AMadRunWheelHitActor::GetWheel() const
 float AMadRunWheelHitActor::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
+	if (GetNetMode() == NM_Client)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Wheel damage must be applied on the server."));
+		return 0.0f;
+	}
 	if (!FMath::IsFinite(DamageAmount) || DamageAmount < 0.0f)
 	{
 		UE_LOG(LogMadRun, Warning, TEXT("Wheel hit damage must be finite and non-negative."));

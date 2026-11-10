@@ -168,6 +168,11 @@ void AMadRunOffroadCar::BeginPlay()
 float AMadRunOffroadCar::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
+	if (!HasAuthority())
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Vehicle damage must be applied on the server."));
+		return 0.0f;
+	}
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);

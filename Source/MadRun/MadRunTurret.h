@@ -46,6 +46,8 @@ public:
 	UFUNCTION(BlueprintPure, Category="Turret|Weapon")
 	bool IsReloading() const { return bReloading; }
 
+	void ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation);
+
 private:
 	AActor* FindTarget() const;
 	bool Fire();

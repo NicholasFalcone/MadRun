@@ -28,6 +28,7 @@ class AMadRunScavengerPoint : public AActor
 
 public:
 	AMadRunScavengerPoint();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	bool IsVehicleInRange(const AMadRunPawn* Vehicle) const;
 	UMadRunEquipment* GetOrSelectEquipment();
@@ -49,6 +50,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMadRunEquipment> SelectedEquipment;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Scavenging", meta=(AllowPrivateAccess="true"))
+	UFUNCTION()
+	void OnRep_Consumed();
+
+	UPROPERTY(ReplicatedUsing=OnRep_Consumed, VisibleInstanceOnly, BlueprintReadOnly, Category="Scavenging", meta=(AllowPrivateAccess="true"))
 	bool bConsumed = false;
 };

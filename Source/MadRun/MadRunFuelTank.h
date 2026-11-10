@@ -43,6 +43,7 @@ public:
 
 	/** Advances consumption by DeltaSeconds, with throttle in the range [0, 1]. */
 	void ConsumeFuel(float DeltaSeconds, float Throttle);
+	void ApplyReplicatedState(float NewFuel, int32 NewHealth);
 
 	UPROPERTY(BlueprintAssignable, Category="Health")
 	FOnOutofWork OnOutofWork;
@@ -51,6 +52,8 @@ public:
 	FOnRepaired OnRepaired;
 
 private:
+	void SetLocalHealth(int32 NewHealth);
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UMadRunPartHealthDisplay> HealthDisplay;
 

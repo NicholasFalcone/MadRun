@@ -71,6 +71,11 @@ protected:
 	TWeakObjectPtr<UMadRunEquipment> PendingEquipment;
 	bool bScavengerPromptOpen = false;
 	bool bScavengerHintVisible = false;
+	bool bWaitingForScavengerReply = false;
+	uint32 ScavengerRequestId = 0;
+	uint32 ServerScavengerRequestId = 0;
+	TWeakObjectPtr<AMadRunScavengerPoint> ServerScavengerPoint;
+	TWeakObjectPtr<UMadRunEquipment> ServerScavengerEquipment;
 
 	/** Mobile controls widget to spawn */
 	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
@@ -132,7 +137,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Scavenging")
 	void CancelScavenging();
 
-	void UpdateRaceStatus(const FText& Status) const;
+	void UpdateRaceStatus(const FText& Status);
+
+	UFUNCTION(Exec)
+	void MadRunHost();
+
+	UFUNCTION(Exec)
+	void MadRunFind();
+
+	UFUNCTION(Exec)
+	void MadRunJoin(int32 Index);
+
+	UFUNCTION(Exec)
+	void MadRunLeave();
 
 protected:
 
@@ -143,6 +160,26 @@ protected:
 	void StartTurretFire();
 	void StopTurretFire();
 	AMadRunScavengerPoint* FindNearbyScavengerPoint() const;
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestScavenge(AMadRunScavengerPoint* Point, uint32 RequestId);
+
+	UFUNCTION(Server, Reliable)
+	void ServerAcceptScavenge(uint32 RequestId);
+
+	UFUNCTION(Server, Reliable)
+	void ServerCancelScavenge(uint32 RequestId);
+
+	UFUNCTION(Client, Reliable)
+	void ClientScavengeOffer(AMadRunScavengerPoint* Point, UMadRunEquipment* Equipment, uint32 RequestId);
+
+	UFUNCTION(Client, Reliable)
+	void ClientScavengeResult(bool bSuccess, uint32 RequestId);
+
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateRaceStatus(const FText& Status);
+
+	FText PendingRaceStatus;
 
 	/** Handles pawn destruction and respawning */
 	UFUNCTION()

@@ -10,6 +10,39 @@ Il progetto usa la mappa e il GameMode della variante OffRoad come predefiniti.
 Alcuni materiali e texture nella cartella `Vehicles/SportsCar` sono condivisi
 con il veicolo OffRoad e devono essere mantenuti.
 
+## Prototipo online Steam
+
+Questa prima versione permette a due giocatori di provare la gara su un
+listen server: uno ospita la partita e l'altro si collega tramite una lobby
+Steam. Usa temporaneamente l'App ID pubblico di test `480` (Spacewar), non
+l'ID definitivo di MadRun. Prima della distribuzione sostituirlo con l'App ID
+del gioco e configurare la distribuzione Steam.
+
+Per provare servono due computer con Steam avviato, due account distinti e la
+stessa build Windows Development del progetto, inclusa la mappa OffRoad. Steam
+Sockets non funziona nel processo Play in Editor di Unreal 5.7: usare processi
+di gioco standalone o build pacchettizzate. Assicurarsi che la mappa contenga
+almeno due Player Start e che tutti i checkpoint della gara abbiano
+`Is Spatially Loaded` disattivato, cosi il GameMode puo trovarli all'avvio.
+
+Aprire la console nella build Development:
+
+1. L'host esegue `MadRunHost` e aspetta la creazione della lobby e il
+   caricamento della mappa.
+2. L'altro giocatore esegue `MadRunFind`, attende i risultati e usa
+   `MadRunJoin 0` (o l'indice della lobby desiderata). I risultati e gli
+   errori sono mostrati a schermo e nel log.
+3. `MadRunLeave` chiude la sessione locale e torna alla mappa in singolo;
+   se eseguito dall'host, disconnette anche l'altro giocatore.
+
+Le lobby sono filtrate con un identificatore MadRun per non unirsi ad altre
+applicazioni che usano l'App ID 480. Il server gestisce il percorso e invia
+lo stato della gara al giocatore interessato; il movimento usa la replica di
+Chaos Vehicles. Si tratta di un prototipo: non include ancora matchmaking,
+inviti, classifica, riconnessione o verifica anti-cheat. Tiro, danni,
+carburante e stato delle parti sono gestiti dal server e sincronizzati con i
+client. Anche scavenging ed equipaggiamento sono gestiti dal server.
+
 ## Carburante e stato dei componenti
 
 Ogni veicolo basato su `MadRunPawn` possiede un Child Actor Component
@@ -113,6 +146,23 @@ L'equipaggiamento arma configura anche le statistiche della torretta descritte
 sotto; gli altri equipaggiamenti non applicano ancora statistiche specifiche.
 Il salvataggio non e implementato; un nuovo veicolo riparte con gli slot iniziali del Blueprint.
 
+## Gara a waypoint
+
+La mappa usa `BP_OffRoadGameMode`, che eredita la logica di gara di
+`AMadRunGameMode`. Per definire il percorso, posizionare nella mappa degli
+Actor `MadRunRaceCheckpoint` o Blueprint derivati: un checkpoint `Start`,
+zero o piu checkpoint `Waypoint` con indici consecutivi da 1, e un checkpoint
+`Finish`. Il componente `Trigger` definisce il volume di passaggio; regolarne
+le dimensioni nel Blueprint o nell'istanza. `Visual` puo ricevere una mesh
+facoltativa per rendere visibili partenza, waypoint e traguardo.
+
+La gara parte quando il veicolo attraversa la partenza. I waypoint devono
+essere raggiunti in ordine; il traguardo completa la gara solo dopo tutti i
+waypoint. L'HUD mostra l'avanzamento e il tempo finale. La gara non prevede
+ancora giri, classifiche o salvataggio dei tempi. Indici duplicati o non
+consecutivi, oppure una partenza o un traguardo mancanti, disabilitano il
+percorso e vengono segnalati nel log.
+
 ## Scavenger Point
 
 Posizionare nella mappa un Actor `MadRunScavengerPoint` o un suo Blueprint.
@@ -126,12 +176,16 @@ voce. Almeno una voce con peso positivo e asset valido e necessaria.
 Entrando nell'area appare l'indicazione per cercare con `E`. Il punto estrae
 un pezzo una sola volta e mostra nome e descrizione: `Y` lo equipaggia, `N`
 chiude la proposta. Rifiutando o uscendo dall'area il pezzo resta disponibile;
-il punto scompare solo dopo un equipaggiamento riuscito. In caso di errore
+il punto scompare solo dopo un equipaggiamento riuscito. Online il server
+estrae un'unica offerta condivisa, verifica distanza e disponibilita e
+sincronizza equipaggiamento e stato del punto. Se due giocatori accettano lo
+stesso pezzo, solo il primo accettato dal server lo ottiene. Impostare
+`Is Spatially Loaded` disattivato anche sui punti scavenging, cosi il server
+e i client possono trovarli con World Partition. In caso di errore
 controllare la configurazione dell'asset e il log. I tasti sono configurabili
 nel Player Controller; `Start Scavenging`, `Accept Scavenged Equipment` e
 `Cancel Scavenging` possono essere collegati a controlli aggiuntivi.
-Non sono previsti controlli touch predefiniti ne sincronizzazione multiplayer
-o salvataggio dei punti.
+Non sono previsti controlli touch predefiniti o salvataggio dei punti.
 
 ## Torretta
 
@@ -146,6 +200,14 @@ riempie il nuovo caricatore, senza annullare il tempo di attesa del colpo preced
 Senza un Data Asset arma si usano i valori predefiniti della torretta:
 0,2 secondi tra colpi, 5 danni, 30 colpi e 2 secondi di ricarica.
 La torretta espone `Get Ammo In Magazine`, `Get Magazine Size` e `Is Reloading`.
+In multiplayer il proprietario richiede inizio e fine fuoco al server, che
+gestisce mira, cadenza, munizioni, impatti e danni. I proiettili vengono
+replicati; l'effetto visivo dell'impatto e inviato ai client interessati, ma
+puo andare perso in caso di perdita di pacchetti. `OnTurretFired` e
+`OnProjectileHit` vengono eseguiti sul server, non sui client remoti.
+La salute di ruote e serbatoio, il carburante, le munizioni, la ricarica e
+l'orientamento della torretta sono sincronizzati dal veicolo; le modifiche a
+salute e carburante devono essere richieste ed eseguite sul server.
 Mira al
 pezzo funzionante piu vicino di un altro veicolo MadRun entro 100 metri,
 se il percorso del proiettile verso il centro della sua hitbox non e bloccato.

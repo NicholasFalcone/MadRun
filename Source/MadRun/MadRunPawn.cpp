@@ -14,11 +14,15 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "MadRun.h"
 #include "TimerManager.h"
+#include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
 AMadRunPawn::AMadRunPawn()
 {
+	bReplicates = true;
+	SetReplicateMovement(true);
 	FuelTank = CreateDefaultSubobject<UChildActorComponent>(TEXT("Fuel Tank Actor"));
 	FuelTank->SetupAttachment(GetMesh());
 	FuelTank->SetChildActorClass(AMadRunFuelTank::StaticClass());
@@ -104,7 +108,7 @@ void AMadRunPawn::BeginPlay()
 		static_cast<UMadRunEquipment*>(InitialTiresEquipment.Get()),
 		static_cast<UMadRunEquipment*>(InitialFuelTankEquipment.Get()) })
 	{
-		if (Initial && !Equip(Initial))
+		if (Initial && !(HasAuthority() ? Equip(Initial) : ApplyEquipment(Initial)))
 		{
 			UE_LOG(LogMadRun, Error, TEXT("Vehicle '%s' failed to equip initial equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Initial));
 		}
@@ -118,7 +122,10 @@ void AMadRunPawn::BeginPlay()
 	}
 
 	// set up the flipped check timer
-	GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AMadRunPawn::FlippedCheck, FlipCheckTime, true);
+	if (HasAuthority())
+	{
+		GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AMadRunPawn::FlippedCheck, FlipCheckTime, true);
+	}
 }
 
 void AMadRunPawn::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -138,6 +145,14 @@ void AMadRunPawn::UnPossessed()
 
 void AMadRunPawn::DoFireStart()
 {
+	if (!HasAuthority())
+	{
+		if (IsLocallyControlled())
+		{
+			ServerSetTurretFire(true);
+		}
+		return;
+	}
 	if (AMadRunTurret* Turret = GetTurret())
 	{
 		Turret->StartFire();
@@ -146,9 +161,123 @@ void AMadRunPawn::DoFireStart()
 
 void AMadRunPawn::DoFireStop()
 {
+	if (!HasAuthority())
+	{
+		if (IsLocallyControlled())
+		{
+			ServerSetTurretFire(false);
+		}
+		return;
+	}
 	if (AMadRunTurret* Turret = GetTurret())
 	{
 		Turret->StopFire();
+	}
+}
+
+void AMadRunPawn::ServerSetTurretFire_Implementation(bool bFire)
+{
+	if (bFire)
+	{
+		DoFireStart();
+	}
+	else
+	{
+		DoFireStop();
+	}
+}
+
+void AMadRunPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMadRunPawn, CombatState);
+	DOREPLIFETIME(AMadRunPawn, ReplicatedEngineEquipment);
+	DOREPLIFETIME(AMadRunPawn, ReplicatedWeaponEquipment);
+	DOREPLIFETIME(AMadRunPawn, ReplicatedTiresEquipment);
+	DOREPLIFETIME(AMadRunPawn, ReplicatedFuelTankEquipment);
+}
+
+void AMadRunPawn::OnRep_Equipment()
+{
+	bEquipmentUpdatePending = true;
+}
+
+void AMadRunPawn::ApplyReplicatedEquipment()
+{
+	if ((ReplicatedWeaponEquipment && !GetTurret()) || (ReplicatedFuelTankEquipment && !GetFuelTank()))
+	{
+		return;
+	}
+	bEquipmentUpdatePending = false;
+	for (UMadRunEquipment* Equipment : { static_cast<UMadRunEquipment*>(ReplicatedEngineEquipment.Get()),
+		static_cast<UMadRunEquipment*>(ReplicatedWeaponEquipment.Get()),
+		static_cast<UMadRunEquipment*>(ReplicatedTiresEquipment.Get()),
+		static_cast<UMadRunEquipment*>(ReplicatedFuelTankEquipment.Get()) })
+	{
+		if (Equipment && Equipment != EngineEquipment && Equipment != WeaponEquipment
+			&& Equipment != TiresEquipment && Equipment != FuelTankEquipment && !ApplyEquipment(Equipment))
+		{
+			UE_LOG(LogMadRun, Error, TEXT("Vehicle '%s' failed to apply replicated equipment '%s'."),
+				*GetNameSafe(this), *GetNameSafe(Equipment));
+		}
+	}
+}
+
+void AMadRunPawn::MulticastProjectileImpact_Implementation(UParticleSystem* Effect, FVector_NetQuantize Location, FVector_NetQuantizeNormal Normal)
+{
+	if (Effect && GetNetMode() != NM_DedicatedServer)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Effect, Location, Normal.Rotation());
+	}
+}
+
+void AMadRunPawn::CaptureCombatState()
+{
+	AMadRunFuelTank* Tank = GetFuelTank();
+	if (!IsValid(Tank))
+	{
+		return;
+	}
+	CombatState.Fuel = Tank->GetFuel();
+	CombatState.TankHealth = IMadRunPartHealth::Execute_GetHealth(Tank);
+	CombatState.WheelHealth.Reset();
+	for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
+	{
+		const UMadRunWheelBase* Part = Cast<UMadRunWheelBase>(Wheel);
+		CombatState.WheelHealth.Add(IsValid(Part) ? IMadRunPartHealth::Execute_GetHealth(Part) : INDEX_NONE);
+	}
+	if (const AMadRunTurret* Turret = GetTurret())
+	{
+		CombatState.Ammo = Turret->GetAmmoInMagazine();
+		CombatState.bReloading = Turret->IsReloading();
+		CombatState.TurretRotation = Turret->GetActorRotation();
+	}
+	CombatState.bInitialized = true;
+}
+
+void AMadRunPawn::ApplyCombatState()
+{
+	if (!CombatState.bInitialized)
+	{
+		return;
+	}
+	if (AMadRunFuelTank* Tank = GetFuelTank())
+	{
+		Tank->ApplyReplicatedState(CombatState.Fuel, CombatState.TankHealth);
+	}
+	for (int32 Index = 0; Index < CombatState.WheelHealth.Num(); ++Index)
+	{
+		if (CombatState.WheelHealth[Index] >= 0 && ChaosVehicleMovement->Wheels.IsValidIndex(Index))
+		{
+			if (UMadRunWheelBase* Wheel = Cast<UMadRunWheelBase>(ChaosVehicleMovement->Wheels[Index]))
+			{
+				Wheel->ApplyReplicatedHealth(CombatState.WheelHealth[Index]);
+			}
+		}
+	}
+	if (AMadRunTurret* Turret = GetTurret())
+	{
+		Turret->ApplyReplicatedState(CombatState.Ammo, CombatState.bReloading, CombatState.TurretRotation);
 	}
 }
 
@@ -156,11 +285,19 @@ void AMadRunPawn::Tick(float Delta)
 {
 	Super::Tick(Delta);
 
+	if (!HasAuthority())
+	{
+		if (bEquipmentUpdatePending)
+		{
+			ApplyReplicatedEquipment();
+		}
+		ApplyCombatState();
+	}
 	const float Throttle = ChaosVehicleMovement->GetThrottleInput();
 	const float ReverseThrottle = ChaosVehicleMovement->bReverseAsBrake && ChaosVehicleMovement->GetTargetGear() < 0
 		? ChaosVehicleMovement->GetBrakeInput() : 0.0f;
 	AMadRunFuelTank* Tank = GetFuelTank();
-	if (Tank)
+	if (Tank && HasAuthority())
 	{
 		Tank->ConsumeFuel(Delta, FMath::Max(Throttle, ReverseThrottle));
 	}
@@ -185,6 +322,10 @@ void AMadRunPawn::Tick(float Delta)
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
+	if (HasAuthority() && GetNetMode() != NM_Standalone)
+	{
+		CaptureCombatState();
+	}
 }
 
 AMadRunFuelTank* AMadRunPawn::GetFuelTank() const
@@ -193,6 +334,25 @@ AMadRunFuelTank* AMadRunPawn::GetFuelTank() const
 }
 
 bool AMadRunPawn::Equip(UMadRunEquipment* Equipment)
+{
+	if (GetNetMode() == NM_Client || !HasAuthority())
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Vehicle equipment must be changed by the server."));
+		return false;
+	}
+	if (!ApplyEquipment(Equipment))
+	{
+		return false;
+	}
+	ReplicatedEngineEquipment = EngineEquipment;
+	ReplicatedWeaponEquipment = WeaponEquipment;
+	ReplicatedTiresEquipment = TiresEquipment;
+	ReplicatedFuelTankEquipment = FuelTankEquipment;
+	ForceNetUpdate();
+	return true;
+}
+
+bool AMadRunPawn::ApplyEquipment(UMadRunEquipment* Equipment)
 {
 	if (!IsValid(Equipment))
 	{
@@ -395,6 +555,14 @@ void AMadRunPawn::DoToggleCamera()
 
 void AMadRunPawn::DoResetVehicle()
 {
+	if (!HasAuthority())
+	{
+		if (IsLocallyControlled())
+		{
+			ServerResetVehicle();
+		}
+		return;
+	}
 	// reset to a location slightly above our current one
 	FVector ResetLocation = GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
 
@@ -408,6 +576,11 @@ void AMadRunPawn::DoResetVehicle()
 
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+}
+
+void AMadRunPawn::ServerResetVehicle_Implementation()
+{
+	DoResetVehicle();
 }
 
 void AMadRunPawn::FlippedCheck()

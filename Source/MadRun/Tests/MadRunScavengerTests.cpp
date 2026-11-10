@@ -4,6 +4,8 @@
 #include "MadRunEquipment.h"
 #include "MadRunScavengerPoint.h"
 #include "MadRunScavengerWidget.h"
+#include "MadRunPlayerController.h"
+#include "MadRunPawn.h"
 #include "OffroadCar/MadRunOffroadCar.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/SphereComponent.h"
@@ -12,12 +14,34 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UnrealType.h"
+#include "Net/UnrealNetwork.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMadRunScavengerTest, "MadRun.Vehicle.Scavenging",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FMadRunScavengerTest::RunTest(const FString& Parameters)
 {
+	TestTrue(TEXT("Scavenger points replicate"), GetDefault<AMadRunScavengerPoint>()->GetIsReplicated());
+	TArray<FLifetimeProperty> PointProperties;
+	GetDefault<AMadRunScavengerPoint>()->GetLifetimeReplicatedProps(PointProperties);
+	const FProperty* ConsumedProperty = FindFProperty<FProperty>(AMadRunScavengerPoint::StaticClass(), TEXT("bConsumed"));
+	TestTrue(TEXT("Consumed state replicates"), ConsumedProperty && PointProperties.ContainsByPredicate(
+		[ConsumedProperty](const FLifetimeProperty& Property) { return Property.RepIndex == ConsumedProperty->RepIndex; }));
+	TArray<FLifetimeProperty> VehicleProperties;
+	GetDefault<AMadRunPawn>()->GetLifetimeReplicatedProps(VehicleProperties);
+	for (const TCHAR* Name : { TEXT("ReplicatedEngineEquipment"), TEXT("ReplicatedWeaponEquipment"),
+		TEXT("ReplicatedTiresEquipment"), TEXT("ReplicatedFuelTankEquipment") })
+	{
+		const FProperty* EquipmentProperty = FindFProperty<FProperty>(AMadRunPawn::StaticClass(), Name);
+		TestTrue(FString::Printf(TEXT("%s replicates"), Name), EquipmentProperty && VehicleProperties.ContainsByPredicate(
+			[EquipmentProperty](const FLifetimeProperty& Property) { return Property.RepIndex == EquipmentProperty->RepIndex; }));
+	}
+	for (const TCHAR* Name : { TEXT("ServerRequestScavenge"), TEXT("ServerAcceptScavenge"), TEXT("ServerCancelScavenge") })
+	{
+		const UFunction* RPC = AMadRunPlayerController::StaticClass()->FindFunctionByName(Name);
+		TestTrue(FString::Printf(TEXT("%s is a reliable server RPC"), Name),
+			RPC && RPC->HasAllFunctionFlags(FUNC_Net | FUNC_NetServer | FUNC_NetReliable));
+	}
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	if (!TestNotNull(TEXT("World"), World))
 	{
@@ -60,6 +84,8 @@ bool FMadRunScavengerTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Accept equips offer"), Point->TryEquip(Car, Second));
 		TestTrue(TEXT("Selected engine equipped"), Car->GetEngineEquipment() == Second);
 		TestTrue(TEXT("Point consumed on success"), Point->IsConsumed());
+		AddExpectedError(TEXT("cannot equip an unavailable offer"), EAutomationExpectedErrorFlags::Contains, 1);
+		TestFalse(TEXT("A second acceptance cannot consume the same point"), Point->TryEquip(Car, Second));
 		TestNull(TEXT("Consumed point has no offer"), Point->GetOrSelectEquipment());
 		TestFalse(TEXT("Consumed point is not in range"), Point->IsVehicleInRange(Car));
 

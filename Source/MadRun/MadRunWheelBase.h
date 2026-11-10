@@ -19,6 +19,7 @@ private:
 	FMadRunPartHealthState PartHealth;
 
 	void SetWheelOperational(bool bOperational);
+	void SetLocalHealth(int32 NewHealth);
 
 public:
 	virtual void Init(UChaosWheeledVehicleMovementComponent* InVehicleSim, int32 InWheelIndex) override;
@@ -27,6 +28,7 @@ public:
 	virtual void SetHealth_Implementation(int32 NewHealth) override;
 	virtual void DoRepair_Implementation() override;
 	virtual void TakeDamage_Implementation(int32 DamageAmount) override;
+	void ApplyReplicatedHealth(int32 NewHealth);
 
 	UFUNCTION(BlueprintPure, Category="Equipment")
 	UMadRunTiresEquipment* GetEquipment() const;

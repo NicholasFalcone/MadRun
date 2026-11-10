@@ -15,7 +15,35 @@ class AMadRunFuelTank;
 class UMadRunWheelBase;
 class UChildActorComponent;
 class AMadRunTurret;
+class UParticleSystem;
 struct FInputActionValue;
+
+USTRUCT()
+struct FMadRunCombatState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float Fuel = 0.0f;
+
+	UPROPERTY()
+	int32 TankHealth = 0;
+
+	UPROPERTY()
+	TArray<int32> WheelHealth;
+
+	UPROPERTY()
+	int32 Ammo = 0;
+
+	UPROPERTY()
+	bool bReloading = false;
+
+	UPROPERTY()
+	FRotator TurretRotation = FRotator::ZeroRotator;
+
+	UPROPERTY()
+	bool bInitialized = false;
+};
 
 /**
  *  Vehicle Pawn class
@@ -52,6 +80,37 @@ class AMadRunPawn : public AWheeledVehiclePawn
 	TObjectPtr<UChildActorComponent> FuelTank;
 
 	bool bEngineTorqueDisabledForFuel = false;
+
+	UPROPERTY(Replicated)
+	FMadRunCombatState CombatState;
+
+	void CaptureCombatState();
+	void ApplyCombatState();
+	bool ApplyEquipment(UMadRunEquipment* Equipment);
+	void ApplyReplicatedEquipment();
+
+	UFUNCTION()
+	void OnRep_Equipment();
+
+	bool bEquipmentUpdatePending = false;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Equipment)
+	TObjectPtr<UMadRunEngineEquipment> ReplicatedEngineEquipment;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Equipment)
+	TObjectPtr<UMadRunWeaponEquipment> ReplicatedWeaponEquipment;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Equipment)
+	TObjectPtr<UMadRunTiresEquipment> ReplicatedTiresEquipment;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Equipment)
+	TObjectPtr<UMadRunFuelTankEquipment> ReplicatedFuelTankEquipment;
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetTurretFire(bool bFire);
+
+	UFUNCTION(Server, Reliable)
+	void ServerResetVehicle();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Equipment|Initial", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UMadRunEngineEquipment> InitialEngineEquipment;
@@ -144,6 +203,10 @@ public:
 
 	/** Update */
 	virtual void Tick(float Delta) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastProjectileImpact(UParticleSystem* Effect, FVector_NetQuantize Location, FVector_NetQuantizeNormal Normal);
 
 	// End Actor interface
 

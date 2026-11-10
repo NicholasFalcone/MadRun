@@ -40,6 +40,11 @@ void AMadRunFuelTank::BeginPlay()
 float AMadRunFuelTank::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
+	if (GetNetMode() == NM_Client)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel tank damage must be applied on the server."));
+		return 0.0f;
+	}
 	UE_LOG(LogMadRun, Log, TEXT("Fuel tank taking damage: %f"), DamageAmount);
 	if (!FMath::IsFinite(DamageAmount) || DamageAmount < 0.0f)
 	{
@@ -75,6 +80,16 @@ bool AMadRunFuelTank::ApplyEquipmentVisual(const UMadRunFuelTankEquipment* Equip
 
 void AMadRunFuelTank::SetHealth_Implementation(int32 NewHealth)
 {
+	if (GetNetMode() == NM_Client)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel tank health must be changed on the server."));
+		return;
+	}
+	SetLocalHealth(NewHealth);
+}
+
+void AMadRunFuelTank::SetLocalHealth(int32 NewHealth)
+{
 	const int32 OldHealth = PartHealth.Health;
 	PartHealth.Set(NewHealth);
 	if (OldHealth > 0 && PartHealth.Health == 0)
@@ -108,6 +123,11 @@ void AMadRunFuelTank::DoRepair_Implementation()
 
 void AMadRunFuelTank::AddFuel(float Amount)
 {
+	if (GetNetMode() == NM_Client)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel must be changed on the server."));
+		return;
+	}
 	if (!FMath::IsFinite(Amount) || Amount < 0.0f)
 	{
 		UE_LOG(LogMadRun, Warning, TEXT("Fuel amount must be finite and non-negative."));
@@ -118,6 +138,11 @@ void AMadRunFuelTank::AddFuel(float Amount)
 
 void AMadRunFuelTank::ConsumeFuel(float DeltaSeconds, float Throttle)
 {
+	if (GetNetMode() == NM_Client)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Fuel must be consumed on the server."));
+		return;
+	}
 	if (!FMath::IsFinite(DeltaSeconds) || !FMath::IsFinite(Throttle) || DeltaSeconds < 0.0f)
 	{
 		UE_LOG(LogMadRun, Warning, TEXT("Fuel consumption requires a non-negative finite delta and finite throttle."));
@@ -127,6 +152,12 @@ void AMadRunFuelTank::ConsumeFuel(float DeltaSeconds, float Throttle)
 	const float Rate = FMath::Max(FullThrottleConsumptionPerSecond, 0.0f) * FMath::Clamp(Throttle, 0.0f, 1.0f)
 		+ FMath::Max(MaxLeakPerSecond, 0.0f) * FMath::Clamp(DamageFraction, 0.0f, 1.0f);
 	Fuel = FMath::Max(0.0f, Fuel - Rate * DeltaSeconds);
+}
+
+void AMadRunFuelTank::ApplyReplicatedState(float NewFuel, int32 NewHealth)
+{
+	Fuel = FMath::Clamp(NewFuel, 0.0f, FMath::Max(Capacity, 0.0f));
+	SetLocalHealth(NewHealth);
 }
 
 #undef LOCTEXT_NAMESPACE

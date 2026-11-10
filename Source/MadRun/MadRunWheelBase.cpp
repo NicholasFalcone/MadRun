@@ -21,6 +21,22 @@ UMadRunTiresEquipment* UMadRunWheelBase::GetEquipment() const
 
 void UMadRunWheelBase::SetHealth_Implementation(int32 NewHealth)
 {
+	if (IsValid(VehicleComponent) && IsValid(VehicleComponent->GetOwner())
+		&& !VehicleComponent->GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Wheel health must be changed on the server."));
+		return;
+	}
+	SetLocalHealth(NewHealth);
+}
+
+void UMadRunWheelBase::ApplyReplicatedHealth(int32 NewHealth)
+{
+	SetLocalHealth(NewHealth);
+}
+
+void UMadRunWheelBase::SetLocalHealth(int32 NewHealth)
+{
 	const int32 OldHealth = PartHealth.Health;
 	PartHealth.Set(NewHealth);
 	if (OldHealth > 0 && PartHealth.Health == 0)

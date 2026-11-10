@@ -145,6 +145,10 @@ AActor* AMadRunTurret::FindTarget() const
 void AMadRunTurret::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (GetNetMode() == NM_Client)
+	{
+		return;
+	}
 	Target = FindTarget();
 	if (AActor* CurrentTarget = Target.Get())
 	{
@@ -181,7 +185,19 @@ void AMadRunTurret::Tick(float DeltaSeconds)
 
 void AMadRunTurret::StartFire()
 {
+	if (GetNetMode() == NM_Client)
+	{
+		UE_LOG(LogMadRun, Warning, TEXT("Turret fire must be started by the server."));
+		return;
+	}
 	bFiring = true;
+}
+
+void AMadRunTurret::ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation)
+{
+	AmmoInMagazine = InAmmo;
+	bReloading = bInReloading;
+	SetActorRotation(Rotation);
 }
 
 void AMadRunTurret::StopFire()
