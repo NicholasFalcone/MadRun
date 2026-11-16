@@ -59,8 +59,14 @@ class UMadRunTiresEquipment : public UMadRunEquipment
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Equipment|Visual")
-	TObjectPtr<UStaticMesh> Mesh;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Equipment|Tires", meta=(ClampMin="0.0"))
+	float FrictionForceMultiplier = 20.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Equipment|Tires", meta=(ClampMin="0.0", Units="cm"))
+	float SuspensionMaxRaise = 20.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Equipment|Tires", meta=(ClampMin="0.0", Units="cm"))
+	float SuspensionMaxDrop = 20.0f;
 };
 
 UCLASS(BlueprintType, Blueprintable)

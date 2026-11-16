@@ -1,16 +1,45 @@
 #include "MadRunWheelBase.h"
 #include "MadRun.h"
 #include "MadRunPawn.h"
+#include "MadRunVehicleMovementComponent.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 
 void UMadRunWheelBase::Init(UChaosWheeledVehicleMovementComponent* InVehicleSim, int32 InWheelIndex)
 {
 	Super::Init(InVehicleSim, InWheelIndex);
 	PartHealth.Initialize();
+	const AMadRunPawn* Vehicle = IsValid(InVehicleSim) ? Cast<AMadRunPawn>(InVehicleSim->GetOwner()) : nullptr;
+	if (IsValid(Vehicle))
+	{
+		ApplyTiresEquipmentStats(Vehicle->GetTiresEquipment());
+	}
 }
 
 int32 UMadRunWheelBase::GetHealth_Implementation() const { return PartHealth.Health; }
 int32 UMadRunWheelBase::GetMaxHealth_Implementation() const { return FMath::Max(PartHealth.MaxHealth, 1); }
+
+void UMadRunWheelBase::ApplyTiresEquipmentStats(const UMadRunTiresEquipment* Equipment)
+{
+	if (!IsValid(Equipment))
+	{
+		return;
+	}
+	FrictionForceMultiplier = Equipment->FrictionForceMultiplier;
+	SuspensionMaxRaise = Equipment->SuspensionMaxRaise;
+	SuspensionMaxDrop = Equipment->SuspensionMaxDrop;
+	if (IsValid(VehicleComponent) && VehicleComponent->Wheels.IsValidIndex(WheelIndex)
+		&& VehicleComponent->Wheels[WheelIndex] == this)
+	{
+		if (UMadRunVehicleMovementComponent* Movement = Cast<UMadRunVehicleMovementComponent>(VehicleComponent))
+		{
+			Movement->ApplyTireStats(WheelIndex, FrictionForceMultiplier, SuspensionMaxRaise, SuspensionMaxDrop);
+		}
+		else
+		{
+			UE_LOG(LogMadRun, Error, TEXT("Wheel '%s' cannot apply tire statistics: unsupported movement component."), *GetNameSafe(this));
+		}
+	}
+}
 
 UMadRunTiresEquipment* UMadRunWheelBase::GetEquipment() const
 {

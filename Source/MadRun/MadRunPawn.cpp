@@ -4,6 +4,7 @@
 #include "MadRunFuelTank.h"
 #include "MadRunWheelBase.h"
 #include "MadRunTurret.h"
+#include "MadRunVehicleMovementComponent.h"
 #include "Components/ChildActorComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -19,7 +20,8 @@
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
-AMadRunPawn::AMadRunPawn()
+AMadRunPawn::AMadRunPawn(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UMadRunVehicleMovementComponent>(VehicleMovementComponentName))
 {
 	bReplicates = true;
 	SetReplicateMovement(true);
@@ -118,6 +120,17 @@ void AMadRunPawn::BeginPlay()
 	}
 
 	Super::BeginPlay();
+
+	if (TiresEquipment)
+	{
+		for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
+		{
+			if (UMadRunWheelBase* MadRunWheel = Cast<UMadRunWheelBase>(Wheel))
+			{
+				MadRunWheel->ApplyTiresEquipmentStats(TiresEquipment);
+			}
+		}
+	}
 
 	if (!GetFuelTank())
 	{
@@ -402,12 +415,22 @@ bool AMadRunPawn::ApplyEquipment(UMadRunEquipment* Equipment)
 	}
 	if (UMadRunTiresEquipment* Tires = Cast<UMadRunTiresEquipment>(Equipment))
 	{
-		if (!IsValid(Tires->Mesh) || !ApplyTiresMesh(Tires->Mesh))
+		if (!FMath::IsFinite(Tires->FrictionForceMultiplier) || Tires->FrictionForceMultiplier < 0.0f
+			|| !FMath::IsFinite(Tires->SuspensionMaxRaise) || Tires->SuspensionMaxRaise < 0.0f
+			|| !FMath::IsFinite(Tires->SuspensionMaxDrop) || Tires->SuspensionMaxDrop < 0.0f)
 		{
-			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot apply tires equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Tires));
+			UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot apply tires equipment '%s': invalid tire statistics."),
+				*GetNameSafe(this), *GetNameSafe(Tires));
 			return false;
 		}
 		TiresEquipment = Tires;
+		for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
+		{
+			if (UMadRunWheelBase* MadRunWheel = Cast<UMadRunWheelBase>(Wheel))
+			{
+				MadRunWheel->ApplyTiresEquipmentStats(Tires);
+			}
+		}
 		return true;
 	}
 	if (UMadRunFuelTankEquipment* TankEquipment = Cast<UMadRunFuelTankEquipment>(Equipment))
@@ -422,12 +445,6 @@ bool AMadRunPawn::ApplyEquipment(UMadRunEquipment* Equipment)
 		return true;
 	}
 	UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' cannot equip unsupported equipment '%s'."), *GetNameSafe(this), *GetNameSafe(Equipment));
-	return false;
-}
-
-bool AMadRunPawn::ApplyTiresMesh(UStaticMesh* TireMesh)
-{
-	UE_LOG(LogMadRun, Warning, TEXT("Vehicle '%s' does not support tire visuals."), *GetNameSafe(this));
 	return false;
 }
 

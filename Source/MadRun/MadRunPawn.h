@@ -193,7 +193,7 @@ protected:
 	FTimerHandle FlipCheckTimer;
 
 public:
-	AMadRunPawn();
+	AMadRunPawn(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Begin Pawn interface
 
@@ -338,8 +338,6 @@ public:
 	bool Equip(UMadRunEquipment* Equipment);
 
 protected:
-	virtual bool ApplyTiresMesh(UStaticMesh* TireMesh);
-
 public:
 
 	UFUNCTION(BlueprintPure, Category="Vehicle|Turret")

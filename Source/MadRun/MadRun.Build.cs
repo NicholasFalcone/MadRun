@@ -15,6 +15,7 @@ public class MadRun : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"ChaosVehicles",
+			"ChaosVehiclesCore",
 			"PhysicsCore",
 			"UMG",
 			"Slate"
@@ -26,7 +27,7 @@ public class MadRun : ModuleRules
 			"MadRun/Variant_Offroad"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "OnlineSubsystem", "OnlineSubsystemUtils", "Sockets" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "OnlineSubsystem", "OnlineSubsystemUtils", "Sockets", "Chaos" });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

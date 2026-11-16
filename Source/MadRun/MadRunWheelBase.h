@@ -29,6 +29,7 @@ public:
 	virtual void DoRepair_Implementation() override;
 	virtual void TakeDamage_Implementation(int32 DamageAmount) override;
 	void ApplyReplicatedHealth(int32 NewHealth);
+	void ApplyTiresEquipmentStats(const UMadRunTiresEquipment* Equipment);
 
 	UFUNCTION(BlueprintPure, Category="Equipment")
 	UMadRunTiresEquipment* GetEquipment() const;
