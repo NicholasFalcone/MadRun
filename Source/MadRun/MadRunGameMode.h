@@ -41,6 +41,9 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AMadRunRaceCheckpoint>> Waypoints;
 
+	UPROPERTY(Transient)
+	TObjectPtr<AMadRunRaceCheckpoint> CurrentCheckpoint;
+
 	TMap<TWeakObjectPtr<APlayerController>, FMadRunRaceProgress> PlayerProgress;
 	bool bRaceRouteValid = false;
 };

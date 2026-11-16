@@ -9,6 +9,8 @@
 class UBoxComponent;
 class UStaticMeshComponent;
 
+
+
 UENUM(BlueprintType)
 enum class EMadRunRaceCheckpointType : uint8
 {
@@ -17,6 +19,9 @@ enum class EMadRunRaceCheckpointType : uint8
 	Finish
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCheckpointActivated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCheckpointReached);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCheckpointDeactivated); 
 UCLASS(Blueprintable)
 class AMadRunRaceCheckpoint : public AActor
 {
@@ -27,6 +32,24 @@ public:
 
 	EMadRunRaceCheckpointType GetCheckpointType() const { return CheckpointType; }
 	int32 GetWaypointIndex() const { return WaypointIndex; }
+
+	UPROPERTY(BlueprintAssignable, Category="Race")
+	FOnCheckpointActivated OnCheckpointActivated;
+	
+	UPROPERTY(BlueprintAssignable, Category="Race")
+	FOnCheckpointReached OnCheckpointReached;
+
+	UPROPERTY(BlueprintAssignable, Category="Race")
+	FOnCheckpointDeactivated OnCheckpointDeactivated;
+
+	UFUNCTION(BlueprintCallable, Category="Race")
+	void ActiveCheckpoint();
+
+	UFUNCTION(BlueprintCallable, Category="Race")
+	void ReachedCheckpoint();
+
+	UFUNCTION(BlueprintCallable, Category="Race")
+	void DeactivateCheckpoint();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
@@ -40,6 +63,7 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Race", meta=(AllowPrivateAccess="true", EditCondition="CheckpointType == EMadRunRaceCheckpointType::Waypoint", ClampMin="1"))
 	int32 WaypointIndex = 1;
+
 
 	UFUNCTION()
 	void HandleOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

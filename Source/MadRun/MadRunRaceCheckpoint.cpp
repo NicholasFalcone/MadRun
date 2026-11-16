@@ -35,3 +35,18 @@ void AMadRunRaceCheckpoint::HandleOverlapBegin(UPrimitiveComponent* OverlappedCo
 		GameMode->HandleRaceCheckpoint(OtherActor, this);
 	}
 }
+
+void AMadRunRaceCheckpoint::ActiveCheckpoint()
+{
+	OnCheckpointActivated.Broadcast();
+}
+
+void AMadRunRaceCheckpoint::ReachedCheckpoint()
+{
+	OnCheckpointReached.Broadcast();
+}
+
+void AMadRunRaceCheckpoint::DeactivateCheckpoint()
+{
+	OnCheckpointDeactivated.Broadcast();
+}

@@ -36,6 +36,9 @@ void AMadRunGameMode::InitializeRaceRoute()
 		UE_LOG(LogMadRun, Log, TEXT("Found checkpoint: %s"), *It->GetName());
 		AMadRunRaceCheckpoint* Checkpoint = *It;
 		UE_LOG(LogMadRun, Log, TEXT("Checkpoint type: %d"), static_cast<int32>(Checkpoint->GetCheckpointType()));
+		
+		Checkpoint->DeactivateCheckpoint();
+
 		switch (Checkpoint->GetCheckpointType())
 		{
 		case EMadRunRaceCheckpointType::Start:
@@ -101,6 +104,8 @@ void AMadRunGameMode::InitializeRaceRoute()
 	{
 		bRaceRouteValid = true;
 		UE_LOG(LogMadRun, Log, TEXT("Race route ready with %d waypoint(s)."), Waypoints.Num());
+		CurrentCheckpoint = StartCheckpoint;
+		CurrentCheckpoint->ActiveCheckpoint();
 	}
 }
 
@@ -130,6 +135,15 @@ void AMadRunGameMode::HandleRaceCheckpoint(AActor* OverlappedActor, AMadRunRaceC
 		Progress.StartTime = GetWorld()->GetTimeSeconds();
 		UpdateRaceStatus(PlayerController, FText::Format(
 			LOCTEXT("RaceStarted", "Gara iniziata - waypoint: 0/{0}"), FText::AsNumber(Waypoints.Num())));
+		
+		CurrentCheckpoint->ReachedCheckpoint();
+
+		///Active the first checkpoint 
+		if (Waypoints.Num() > 0 && IsValid(Waypoints[0]))
+		{
+			CurrentCheckpoint = Waypoints[0];
+		}
+		CurrentCheckpoint->ActiveCheckpoint();
 		return;
 	}
 
@@ -149,10 +163,23 @@ void AMadRunGameMode::HandleRaceCheckpoint(AActor* OverlappedActor, AMadRunRaceC
 			return;
 		}
 
+		CurrentCheckpoint->ReachedCheckpoint();
+
 		++Progress.NextWaypointIndex;
 		UpdateRaceStatus(PlayerController, FText::Format(
 			LOCTEXT("WaypointReached", "Waypoint: {0}/{1}"),
 			FText::AsNumber(Progress.NextWaypointIndex - 1), FText::AsNumber(Waypoints.Num())));
+		///Active the next checkpoint if it exists need to check if end waypoint is reached
+		if (Waypoints.IsValidIndex(Progress.NextWaypointIndex - 1) && IsValid(Waypoints[Progress.NextWaypointIndex - 1]))
+		{
+			CurrentCheckpoint = Waypoints[Progress.NextWaypointIndex - 1];
+		}
+		else
+		{
+			CurrentCheckpoint = FinishCheckpoint;
+		}
+		CurrentCheckpoint->ActiveCheckpoint();
+
 		return;
 	}
 
@@ -167,6 +194,10 @@ void AMadRunGameMode::HandleRaceCheckpoint(AActor* OverlappedActor, AMadRunRaceC
 		UpdateRaceStatus(PlayerController, FText::Format(
 			LOCTEXT("RaceFinished", "Gara completata! Tempo: {0} s"),
 			FText::AsNumber(ElapsedTime, &TimeOptions)));
+		if(CurrentCheckpoint)
+		{
+			CurrentCheckpoint->ReachedCheckpoint();
+		}
 	}
 	else
 	{
