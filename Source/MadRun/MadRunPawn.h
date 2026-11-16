@@ -113,6 +113,9 @@ class AMadRunPawn : public AWheeledVehiclePawn
 	void ServerSetTurretFire(bool bFire);
 
 	UFUNCTION(Server, Reliable)
+	void ServerChangeTurretTarget();
+
+	UFUNCTION(Server, Reliable)
 	void ServerResetVehicle();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Equipment|Initial", meta=(AllowPrivateAccess="true"))
@@ -243,6 +246,7 @@ protected:
 
 	/** Handles reset vehicle input */
 	void ResetVehicle(const FInputActionValue& Value);
+	void HandleChangeTarget(const FInputActionValue& Value);
 
 public:
 
@@ -285,6 +289,9 @@ public:
 	/** Handle reset vehicle input by input actions or mobile interface */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoResetVehicle();
+
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoChangeTarget();
 
 protected:
 

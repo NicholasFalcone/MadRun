@@ -127,7 +127,15 @@ bool FMadRunTurretTest::RunTest(const FString& Parameters)
 			Turret->Tick(0.0f);
 			TestTrue(TEXT("Repaired wheel can be targeted again"), Turret->GetTarget() == WheelHit);
 			WheelHit->Destroy();
+			Turret->Tick(0.0f);
 		}
+
+		Turret->SelectNextTarget();
+		TestTrue(TEXT("Change target selects the next valid part"), Turret->GetTarget() == FarTank);
+		Turret->Tick(0.0f);
+		TestTrue(TEXT("Automatic targeting preserves the selected target"), Turret->GetTarget() == FarTank);
+		Turret->SelectNextTarget();
+		TestTrue(TEXT("Change target cycles back to the nearest part"), Turret->GetTarget() == NearTank);
 
 		AActor* Blocker = World->SpawnActor<AActor>();
 		UBoxComponent* Box = NewObject<UBoxComponent>(Blocker);

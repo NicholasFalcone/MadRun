@@ -29,6 +29,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Turret")
 	void StopFire();
 
+	void SelectNextTarget();
+
 	UFUNCTION(BlueprintPure, Category="Turret")
 	AActor* GetTarget() const { return Target.Get(); }
 
@@ -51,7 +53,7 @@ public:
 	void ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation, const float InRotationSpeed);
 
 private:
-	AActor* FindTarget() const;
+	TArray<AActor*> FindTargets() const;
 	bool Fire();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
@@ -82,6 +84,7 @@ private:
 	float MuzzleDistance = 100.0f;
 
 	TWeakObjectPtr<AActor> Target;
+	bool bHasManualTargetSelection = false;
 	bool bFiring = false;
 	int32 AmmoInMagazine = 0;
 	bool bReloading = false;

@@ -81,12 +81,13 @@ bool AMadRunTurret::ApplyEquipment(const UMadRunWeaponEquipment* Equipment)
 	return true;
 }
 
-AActor* AMadRunTurret::FindTarget() const
+TArray<AActor*> AMadRunTurret::FindTargets() const
 {
+	TArray<AActor*> Targets;
 	const AMadRunPawn* Vehicle = Cast<AMadRunPawn>(GetParentActor());
 	if (!IsValid(Vehicle))
 	{
-		return nullptr;
+		return Targets;
 	}
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(TurretLineOfSight), false);
@@ -94,8 +95,14 @@ AActor* AMadRunTurret::FindTarget() const
 	TArray<AActor*> Attached;
 	Vehicle->GetAttachedActors(Attached, true, true);
 	Params.AddIgnoredActors(Attached);
-	AActor* Best = nullptr;
-	float BestDistanceSquared = FMath::Square(FMath::Max(0.0f, TargetRange));
+	struct FTargetCandidate
+	{
+		AActor* Actor;
+		float DistanceSquared;
+		uint32 UniqueId;
+	};
+	TArray<FTargetCandidate> Candidates;
+	const float MaxDistanceSquared = FMath::Square(FMath::Max(0.0f, TargetRange));
 	const FVector Origin = GetActorLocation();
 	for (TActorIterator<AMadRunPawn> It(GetWorld()); It; ++It)
 	{
@@ -126,7 +133,7 @@ AActor* AMadRunTurret::FindTarget() const
 			FVector Extent;
 			Part->GetActorBounds(true, AimPoint, Extent);
 			const float DistanceSquared = FVector::DistSquared(Origin, AimPoint);
-			if (DistanceSquared >= BestDistanceSquared)
+			if (DistanceSquared >= MaxDistanceSquared)
 			{
 				continue;
 			}
@@ -136,11 +143,37 @@ AActor* AMadRunTurret::FindTarget() const
 			{
 				continue;
 			}
-			Best = Part;
-			BestDistanceSquared = DistanceSquared;
+			Candidates.Add({ Part, DistanceSquared, Part->GetUniqueID() });
 		}
 	}
-	return Best;
+
+	Candidates.Sort([](const FTargetCandidate& A, const FTargetCandidate& B)
+	{
+		return A.DistanceSquared == B.DistanceSquared
+			? A.UniqueId < B.UniqueId
+			: A.DistanceSquared < B.DistanceSquared;
+	});
+	Targets.Reserve(Candidates.Num());
+	for (const FTargetCandidate& Candidate : Candidates)
+	{
+		Targets.Add(Candidate.Actor);
+	}
+	return Targets;
+}
+
+void AMadRunTurret::SelectNextTarget()
+{
+	const TArray<AActor*> Targets = FindTargets();
+	if (Targets.IsEmpty())
+	{
+		Target.Reset();
+		bHasManualTargetSelection = false;
+		return;
+	}
+
+	const int32 CurrentIndex = Targets.IndexOfByKey(Target.Get());
+	Target = Targets[(CurrentIndex + 1) % Targets.Num()];
+	bHasManualTargetSelection = true;
 }
 
 void AMadRunTurret::Tick(float DeltaSeconds)
@@ -150,7 +183,15 @@ void AMadRunTurret::Tick(float DeltaSeconds)
 	{
 		return;
 	}
-	Target = FindTarget();
+	const TArray<AActor*> ValidTargets = FindTargets();
+	if (bHasManualTargetSelection && !ValidTargets.Contains(Target.Get()))
+	{
+		bHasManualTargetSelection = false;
+	}
+	if (!bHasManualTargetSelection)
+	{
+		Target = ValidTargets.IsEmpty() ? nullptr : ValidTargets[0];
+	}
 	if (AActor* CurrentTarget = Target.Get())
 	{
 		FVector AimPoint;

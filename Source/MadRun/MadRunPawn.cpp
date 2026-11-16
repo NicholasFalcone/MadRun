@@ -94,6 +94,9 @@ void AMadRunPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputCo
 
 		// reset the vehicle 
 		EnhancedInputComponent->BindAction(ResetVehicleAction, ETriggerEvent::Triggered, this, &AMadRunPawn::ResetVehicle);
+
+		// change turret target
+		EnhancedInputComponent->BindAction(ChangeTarget, ETriggerEvent::Started, this, &AMadRunPawn::HandleChangeTarget);
 	}
 	else
 	{
@@ -185,6 +188,27 @@ void AMadRunPawn::ServerSetTurretFire_Implementation(bool bFire)
 	{
 		DoFireStop();
 	}
+}
+
+void AMadRunPawn::DoChangeTarget()
+{
+	if (!HasAuthority())
+	{
+		if (IsLocallyControlled())
+		{
+			ServerChangeTurretTarget();
+		}
+		return;
+	}
+	if (AMadRunTurret* Turret = GetTurret())
+	{
+		Turret->SelectNextTarget();
+	}
+}
+
+void AMadRunPawn::ServerChangeTurretTarget_Implementation()
+{
+	DoChangeTarget();
 }
 
 void AMadRunPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -480,6 +504,11 @@ void AMadRunPawn::ResetVehicle(const FInputActionValue& Value)
 {
 	// route the input
 	DoResetVehicle();
+}
+
+void AMadRunPawn::HandleChangeTarget(const FInputActionValue& Value)
+{
+	DoChangeTarget();
 }
 
 void AMadRunPawn::DoSteering(float SteeringValue)
