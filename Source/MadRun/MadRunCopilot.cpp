@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MadRunCopilot.h"
+#include "MadRunCopilotData.h"
 #include "MadRunCopilotRepairComponent.h"
 #include "MadRunCopilotCombatComponent.h"
 #include "MadRunCopilotScavengingComponent.h"
+#include "MadRunPawn.h"
+#include "MadRun.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/CameraComponent.h"
 
@@ -34,6 +38,25 @@ ACopilot::ACopilot()
 	CopilotStats.ScavengingSkill = 60.0f;  // Decent at scavenging
 }
 
+void ACopilot::PostInitializeComponents()
+{
+	const bool bInVehicle = Cast<AMadRunPawn>(GetParentActor()) != nullptr;
+	if (bInVehicle)
+	{
+		AutoPossessAI = EAutoPossessAI::Disabled;
+		AutoPossessPlayer = EAutoReceiveInput::Disabled;
+	}
+
+	Super::PostInitializeComponents();
+
+	if (bInVehicle)
+	{
+		SetActorEnableCollision(false);
+		GetCharacterMovement()->DisableMovement();
+		GetCharacterMovement()->Deactivate();
+	}
+}
+
 void ACopilot::BeginPlay()
 {
 	Super::BeginPlay();
@@ -44,6 +67,31 @@ void ACopilot::BeginPlay()
 void ACopilot::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+bool ACopilot::ApplyCopilotData(const UMadRunCopilotData* Data)
+{
+	if (!IsValid(Data) || !IsValid(Data->BodyMesh))
+	{
+		UE_LOG(LogMadRun, Error, TEXT("Copilot '%s' requires a valid data asset with a body skeletal mesh."),
+			*GetNameSafe(this));
+		return false;
+	}
+
+	const FCopilotStats& Stats = Data->Stats;
+	for (const float Skill : { Stats.MechanicsSkill, Stats.AccuracySkill, Stats.ScavengingSkill })
+	{
+		if (!FMath::IsFinite(Skill) || Skill < 0.0f || Skill > 100.0f)
+		{
+			UE_LOG(LogMadRun, Error, TEXT("Copilot data '%s' has an invalid skill; skills must be finite and between 0 and 100."),
+				*GetNameSafe(Data));
+			return false;
+		}
+	}
+
+	GetMesh()->SetSkeletalMesh(Data->BodyMesh);
+	SetCopilotStats(Stats);
+	return true;
 }
 
 void ACopilot::InitializeComponents()

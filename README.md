@@ -45,6 +45,25 @@ client. Anche scavenging ed equipaggiamento sono gestiti dal server.
 
 ## Carburante e stato dei componenti
 
+Ogni veicolo derivato da `MadRunPawn` dispone anche del Child Actor Component
+`Copilot`, accessibile con `Get Copilot`. Creare un Data Asset di tipo
+`MadRunCopilotData`, assegnare `Body Mesh` (Skeletal Mesh) e le tre
+statistiche `Stats`, quindi assegnare l'asset a `Initial Copilot Data` nei
+Class Defaults del Blueprint dell'auto. All'avvio sono applicati mesh e
+statistiche; se lo slot e vuoto restano i valori del personaggio. Una mesh
+mancante o abilita fuori dall'intervallo 0-100 causano un errore nel log e
+non modificano il copilota.
+
+Nel Blueprint dell'auto si puo selezionare una sottoclasse Blueprint di
+`Copilot` e posizionarla sul sedile con la trasformazione relativa o un socket
+della mesh. La classe predefinita non include una mesh o animazioni: l'asset
+definisce il corpo, mentre posa e Anim Blueprint vanno configurati nel
+Blueprint del copilota, con uno scheletro compatibile. Il copilota segue il veicolo senza collisione o movimento
+autonomo; le sue azioni non sono ancora collegate alle meccaniche del gioco e
+le sue statistiche non sono replicate. L'asset iniziale viene applicato anche
+sui client a partire dai valori predefiniti del Blueprint; eventuali modifiche
+successive alle statistiche non sono sincronizzate.
+
 Ogni veicolo basato su `MadRunPawn` possiede un Child Actor Component
 `Fuel Tank Actor`, collegato alla mesh del veicolo. Espone l'Actor tramite
 `Get Fuel Tank`. La posizione relativa del componente e configurabile nel

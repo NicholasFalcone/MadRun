@@ -10,6 +10,7 @@
 class UCopilotRepairComponent;
 class UCopilotCombatComponent;
 class UCopilotScavengingComponent;
+class UMadRunCopilotData;
 
 /**
  * Copilot NPC Character
@@ -27,8 +28,11 @@ class MADRUN_API ACopilot : public ACharacter
 public:
 	ACopilot();
 
+	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+
+	bool ApplyCopilotData(const UMadRunCopilotData* Data);
 
 	// Copilot Statistics
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Copilot|Stats")

@@ -2,6 +2,10 @@
 
 ## Introduzione
 
+**Stato del prototipo:** i componenti emettono eventi e calcolano valori, ma
+non riparano le parti, non sparano con la torretta e non aggiungono risorse
+ai sistemi esistenti. Non sono ancora integrati nel gameplay o replicati.
+
 Il **Sistema del Copilota** è un sistema completo per gestire un personaggio NPC non giocabile che supporta il giocatore in tre aree principali: **Riparazione**, **Combattimento** e **Scavenging**. Ogni abilità è influenzata dalle statistiche del copilota, creando un'esperienza dinamica e progressiva.
 
 ## 🎯 Caratteristiche Principali
@@ -203,7 +207,9 @@ Modifica questi valori in `MadRunCopilotStats.cpp` per personalizzare l'equilibr
 ## 🎮 Integrazione con Blueprint
 
 Tutti i componenti e le funzioni sono accessibili da Blueprint:
-- Trascina `ACopilot` nell'editor per posizionarlo nel livello
+- Nel Blueprint del veicolo seleziona il componente ereditato `Copilot` e
+  assegna una sottoclasse Blueprint con mesh e animazioni.
+- Posiziona il componente sul sedile e usa `Get Copilot` per accedervi.
 - Accedi alle funzioni tramite chiamate Blueprint
 - Collega gli eventi a custom events in Blueprint per gestire i completamenti
 

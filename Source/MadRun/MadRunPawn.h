@@ -15,6 +15,8 @@ class AMadRunFuelTank;
 class UMadRunWheelBase;
 class UChildActorComponent;
 class AMadRunTurret;
+class ACopilot;
+class UMadRunCopilotData;
 class UParticleSystem;
 struct FInputActionValue;
 
@@ -81,6 +83,12 @@ class AMadRunPawn : public AWheeledVehiclePawn
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UChildActorComponent> FuelTank;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UChildActorComponent> Copilot;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Vehicle|Copilot", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<UMadRunCopilotData> InitialCopilotData;
 
 	bool bEngineTorqueDisabledForFuel = false;
 
@@ -194,6 +202,9 @@ protected:
 
 public:
 	AMadRunPawn(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UFUNCTION(BlueprintPure, Category="Vehicle|Copilot")
+	ACopilot* GetCopilot() const;
 
 	// Begin Pawn interface
 

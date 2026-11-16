@@ -2,6 +2,12 @@
 
 ## Panoramica
 
+**Stato del prototipo:** i componenti descritti sotto calcolano valori ed
+emettono eventi; non modificano ancora le parti del veicolo, la torretta o
+l'inventario. Il copilota non ha ancora logica autonoma o replica delle stats.
+Ogni `MadRunPawn` possiede un Child Actor Component `Copilot`, configurabile
+nel Blueprint del veicolo e accessibile tramite `Get Copilot`.
+
 Il sistema del Copilota è un personaggio NPC non giocabile che supporta il giocatore in tre aree principali:
 - **Riparazione**: Ripara i danni ai veicoli
 - **Combattimento**: Spara ai nemici
@@ -123,8 +129,9 @@ int32 MaxAmount;         // Quantità massima
 ## Esempio di Utilizzo
 
 ```cpp
-// Creare un copilota nel livello
-ACopilot* Copilot = GetWorld()->SpawnActor<ACopilot>();
+// Ottenere il copilota figlio del veicolo
+ACopilot* Copilot = Vehicle->GetCopilot();
+if (!Copilot) { return; }
 
 // Impostare le statistiche
 FCopilotStats Stats;

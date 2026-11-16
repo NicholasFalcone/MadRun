@@ -2,6 +2,8 @@
 
 #include "MadRunPawn.h"
 #include "MadRunFuelTank.h"
+#include "MadRunCopilot.h"
+#include "MadRunCopilotData.h"
 #include "MadRunWheelBase.h"
 #include "MadRunTurret.h"
 #include "MadRunVehicleMovementComponent.h"
@@ -28,6 +30,9 @@ AMadRunPawn::AMadRunPawn(const FObjectInitializer& ObjectInitializer)
 	FuelTank = CreateDefaultSubobject<UChildActorComponent>(TEXT("Fuel Tank Actor"));
 	FuelTank->SetupAttachment(GetMesh());
 	FuelTank->SetChildActorClass(AMadRunFuelTank::StaticClass());
+	Copilot = CreateDefaultSubobject<UChildActorComponent>(TEXT("Copilot"));
+	Copilot->SetupAttachment(GetMesh());
+	Copilot->SetChildActorClass(ACopilot::StaticClass());
 	// construct the front camera boom
 	FrontSpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("Front Spring Arm"));
 	FrontSpringArm->SetupAttachment(GetMesh());
@@ -63,6 +68,11 @@ AMadRunPawn::AMadRunPawn(const FObjectInitializer& ObjectInitializer)
 	// get the Chaos Wheeled movement component
 	ChaosVehicleMovement = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
 
+}
+
+ACopilot* AMadRunPawn::GetCopilot() const
+{
+	return IsValid(Copilot) ? Cast<ACopilot>(Copilot->GetChildActor()) : nullptr;
 }
 
 void AMadRunPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -108,6 +118,16 @@ void AMadRunPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputCo
 
 void AMadRunPawn::BeginPlay()
 {
+	if (InitialCopilotData)
+	{
+		ACopilot* VehicleCopilot = GetCopilot();
+		if (!IsValid(VehicleCopilot) || !VehicleCopilot->ApplyCopilotData(InitialCopilotData))
+		{
+			UE_LOG(LogMadRun, Error, TEXT("Vehicle '%s' failed to apply initial copilot data '%s'."),
+				*GetNameSafe(this), *GetNameSafe(InitialCopilotData));
+		}
+	}
+
 	for (UMadRunEquipment* Initial : { static_cast<UMadRunEquipment*>(InitialEngineEquipment.Get()),
 		static_cast<UMadRunEquipment*>(InitialWeaponEquipment.Get()),
 		static_cast<UMadRunEquipment*>(InitialTiresEquipment.Get()),
