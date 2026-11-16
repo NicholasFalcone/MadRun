@@ -43,6 +43,9 @@ struct FMadRunCombatState
 
 	UPROPERTY()
 	bool bInitialized = false;
+
+	UPROPERTY()
+	float RotationSpeed = 10;
 };
 
 /**
@@ -165,6 +168,9 @@ protected:
 	/** Reset Vehicle Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* ResetVehicleAction;
+
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* ChangeTarget;
 
 	/** Keeps track of which camera is active */
 	bool bFrontCameraActive = false;

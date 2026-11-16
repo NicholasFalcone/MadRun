@@ -251,6 +251,7 @@ void AMadRunPawn::CaptureCombatState()
 		CombatState.Ammo = Turret->GetAmmoInMagazine();
 		CombatState.bReloading = Turret->IsReloading();
 		CombatState.TurretRotation = Turret->GetActorRotation();
+		CombatState.RotationSpeed = Turret->GetRotationSpeed();
 	}
 	CombatState.bInitialized = true;
 }
@@ -277,7 +278,7 @@ void AMadRunPawn::ApplyCombatState()
 	}
 	if (AMadRunTurret* Turret = GetTurret())
 	{
-		Turret->ApplyReplicatedState(CombatState.Ammo, CombatState.bReloading, CombatState.TurretRotation);
+		Turret->ApplyReplicatedState(CombatState.Ammo, CombatState.bReloading, CombatState.TurretRotation, CombatState.RotationSpeed);
 	}
 }
 

@@ -76,6 +76,7 @@ bool AMadRunTurret::ApplyEquipment(const UMadRunWeaponEquipment* Equipment)
 	MagazineSize = Equipment->MagazineSize;
 	ReloadTime = Equipment->ReloadTime;
 	AmmoInMagazine = MagazineSize;
+	RotationSpeed = Equipment->RotationSpeed;
 	bReloading = false;
 	return true;
 }
@@ -155,7 +156,10 @@ void AMadRunTurret::Tick(float DeltaSeconds)
 		FVector AimPoint;
 		FVector Extent;
 		CurrentTarget->GetActorBounds(true, AimPoint, Extent);
-		SetActorRotation((AimPoint - GetActorLocation()).Rotation());
+		FRotator CurrentRotation = GetActorRotation();
+		FRotator TargetRotation = (AimPoint - GetActorLocation()).Rotation();
+		FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaSeconds, RotationSpeed);
+		SetActorRotation(NewRotation);
 	}
 	else if (const AActor* Parent = GetParentActor())
 	{
@@ -193,11 +197,12 @@ void AMadRunTurret::StartFire()
 	bFiring = true;
 }
 
-void AMadRunTurret::ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation)
+void AMadRunTurret::ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation, const float InRotationSpeed)
 {
 	AmmoInMagazine = InAmmo;
 	bReloading = bInReloading;
 	SetActorRotation(Rotation);
+	RotationSpeed = InRotationSpeed;
 }
 
 void AMadRunTurret::StopFire()

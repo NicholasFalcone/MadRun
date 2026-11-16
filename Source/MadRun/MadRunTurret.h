@@ -46,7 +46,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Turret|Weapon")
 	bool IsReloading() const { return bReloading; }
 
-	void ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation);
+	float GetRotationSpeed() const { return RotationSpeed; }
+
+	void ApplyReplicatedState(int32 InAmmo, bool bInReloading, const FRotator& Rotation, const float InRotationSpeed);
 
 private:
 	AActor* FindTarget() const;
@@ -85,6 +87,7 @@ private:
 	bool bReloading = false;
 	double ReloadEndTime = 0.0;
 	double NextFireTime = 0.0;
+	float RotationSpeed = 10.0f;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category="Turret")

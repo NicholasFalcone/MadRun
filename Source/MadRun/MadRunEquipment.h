@@ -48,6 +48,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Equipment|Weapon", meta=(ClampMin="0.0", Units="s"))
 	float ReloadTime = 2.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Equipment|Weapon", meta=(ClampMin="0.0"))
+	float RotationSpeed = 10.0f;
 };
 
 UCLASS(BlueprintType, Blueprintable)

@@ -70,7 +70,7 @@ bool FMadRunCombatReplicationTest::RunTest(const FString& Parameters)
 		}
 		if (TestNotNull(TEXT("Turret"), Turret))
 		{
-			Turret->ApplyReplicatedState(2, true, FRotator(0.0f, 45.0f, 0.0f));
+			Turret->ApplyReplicatedState(2, true, FRotator(0.0f, 45.0f, 0.0f), 10);
 			TestEqual(TEXT("Replicated ammo applied"), Turret->GetAmmoInMagazine(), 2);
 			TestTrue(TEXT("Replicated reload applied"), Turret->IsReloading());
 			TestTrue(TEXT("Replicated aim applied"), Turret->GetActorRotation().Equals(FRotator(0.0f, 45.0f, 0.0f), 0.1f));
